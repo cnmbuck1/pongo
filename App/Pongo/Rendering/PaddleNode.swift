@@ -5,20 +5,20 @@ import SpinCore
 /// the node never moves on its own, it only mirrors the simulation.
 final class PaddleNode: SCNNode {
 
-    private let pivot = SCNNode()
+    private let bladePivot = SCNNode()
     private var smoothedNormal = SIMD3<Float>(0, 0, -1)
 
     init(accent: UIColor, radius: Double) {
         super.init()
         let r = CGFloat(radius)
-        addChildNode(pivot)
+        addChildNode(bladePivot)
 
-        // Blade: thin disc whose axis is the pivot's local +Z.
+        // Blade: thin disc whose axis is the bladePivot's local +Z.
         let blade = SCNNode(geometry: SCNCylinder(radius: r, height: 0.012))
         blade.geometry?.materials = [Materials.pbr(UIColor(red: 0.08, green: 0.09, blue: 0.12, alpha: 1),
                                                    metalness: 0.2, roughness: 0.6)]
         blade.eulerAngles.x = .pi / 2
-        pivot.addChildNode(blade)
+        bladePivot.addChildNode(blade)
 
         // Rubber face (front) tinted with the accent colour.
         let face = SCNNode(geometry: SCNCylinder(radius: r * 0.96, height: 0.002))
@@ -26,20 +26,20 @@ final class PaddleNode: SCNNode {
                                                   metalness: 0.0, roughness: 0.75)]
         face.eulerAngles.x = .pi / 2
         face.position = SCNVector3(0, 0, 0.0065)
-        pivot.addChildNode(face)
+        bladePivot.addChildNode(face)
 
         // Glowing rim.
         let rim = SCNNode(geometry: SCNTorus(ringRadius: r, pipeRadius: 0.0035))
         rim.geometry?.materials = [Materials.glow(accent, intensity: 1.1)]
         rim.eulerAngles.x = .pi / 2
         rim.castsShadow = false
-        pivot.addChildNode(rim)
+        bladePivot.addChildNode(rim)
 
         // Handle hanging below the blade.
         let handle = SCNNode(geometry: SCNBox(width: 0.028, height: 0.10, length: 0.022, chamferRadius: 0.008))
         handle.geometry?.materials = [Materials.metalFrame]
         handle.position = SCNVector3(0, -Float(r) - 0.045, 0)
-        pivot.addChildNode(handle)
+        bladePivot.addChildNode(handle)
         let grip = SCNNode(geometry: SCNBox(width: 0.004, height: 0.08, length: 0.024, chamferRadius: 0))
         grip.geometry?.materials = [Materials.glow(accent, intensity: 0.7)]
         grip.position = SCNVector3(0.0145, 0, 0)
@@ -54,7 +54,7 @@ final class PaddleNode: SCNNode {
         // Light smoothing of orientation only (position is exact).
         let target = paddle.normal.simd
         smoothedNormal = simd_normalize(smoothedNormal + (target - smoothedNormal) * 0.5)
-        pivot.simdLook(at: simdWorldPosition + smoothedNormal, up: SIMD3<Float>(0, 1, 0),
+        bladePivot.simdLook(at: simdWorldPosition + smoothedNormal, up: SIMD3<Float>(0, 1, 0),
                        localFront: SIMD3<Float>(0, 0, 1))
     }
 }
