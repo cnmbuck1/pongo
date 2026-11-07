@@ -5,7 +5,7 @@ name: TestFlight
 # Needs four repository secrets (see README, "TestFlight"):
 #   APPLE_TEAM_ID, APP_STORE_CONNECT_KEY_ID,
 #   APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_P8
-# Optional repository variable: BUNDLE_ID (default com.cnmbuck.pongo).
+# Optional repository variable: BUNDLE_ID (default com.cnmbuckstudios.pongo).
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
       ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
-      BUNDLE_ID: ${{ vars.BUNDLE_ID || 'com.cnmbuck.pongo' }}
+      BUNDLE_ID: ${{ vars.BUNDLE_ID || 'com.cnmbuckstudios.pongo' }}
       BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - name: Check Apple credentials are configured

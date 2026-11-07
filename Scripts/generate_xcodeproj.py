@@ -166,7 +166,7 @@ tcommon = '''\t\t\t\tASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t);
 \t\t\t\tMARKETING_VERSION = 1.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.cnmbuck.pongo;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.cnmbuckstudios.pongo;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 \t\t\t\tSUPPORTS_MACCATALYST = NO;

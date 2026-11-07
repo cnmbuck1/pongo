@@ -22,13 +22,13 @@ Pongo is an arcade table tennis game built physics first. The ball carries a rea
 ### On a physical iPhone
 1. Connect the iPhone and trust the Mac. On iOS 16 and later, turn on **Developer Mode** under Settings › Privacy & Security.
 2. In Xcode, select the **Pongo** target, open **Signing & Capabilities**, and choose your **Team**. A free Apple ID works for personal installs.
-3. If Xcode reports that the bundle id `com.cnmbuck.pongo` is taken, change it to something unique, such as `com.yourname.pongo`.
+3. If Xcode reports that the bundle id `com.cnmbuckstudios.pongo` is taken, change it to something unique, such as `com.yourname.pongo`.
 4. Select the device as the run destination and press **Run**. On first launch with a free account, trust the developer profile on the phone under Settings › General › VPN & Device Management.
 
 ### TestFlight (install on your iPhone without a Mac)
 `.github/workflows/testflight.yml` builds a signed release and uploads it to TestFlight on every push to `main`. You can also start it by hand from the **Actions** tab. Until the secrets below exist, the job only prints a warning. One-time setup, with a paid Apple Developer account:
 
-1. **Create the app record.** In [App Store Connect](https://appstoreconnect.apple.com), go to **Apps › + › New App**. Choose platform iOS, name "Pongo: 3D Table Tennis", and bundle ID `com.cnmbuck.pongo`.
+1. **Create the app record.** In [App Store Connect](https://appstoreconnect.apple.com), go to **Apps › + › New App**. Choose platform iOS, name "Pongo: 3D Table Tennis", and bundle ID `com.cnmbuckstudios.pongo`.
    - If the bundle ID isn't in the list, register it first at [developer.apple.com › Identifiers](https://developer.apple.com/account/resources/identifiers/list).
    - If it's taken, use another ID and set a repository variable `BUNDLE_ID` to it.
 2. **Create an API key.** In App Store Connect, go to **Users and Access › Integrations › App Store Connect API › Team Keys › +**. Give it the **Admin** role, which cloud signing needs to create the distribution certificate. Download the `.p8` file (it can only be downloaded once), and note the **Key ID** and the **Issuer ID**.
