@@ -9,7 +9,9 @@ name: TestFlight
 
 on:
   push:
-    branches: [main]
+    # claude/pongo-v1 is included so the first upload can be verified before
+    # the v1.0 pull request merges; remove it after merge.
+    branches: [main, claude/pongo-v1]
   workflow_dispatch:
 
 concurrency:
