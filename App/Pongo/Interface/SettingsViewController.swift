@@ -108,18 +108,7 @@ final class SettingsViewController: UIViewController {
             self.settings.assistFollowsDifficulty = i == 0
             if i > 0 { self.settings.controls.assist = AssistLevel.allCases[i - 1] }
         }
-        note("Assistance sets how quickly the paddle tracks the ball, how wide the timing window is and how much the blade angle is helped. It never guarantees a return. \"Match opponent\" uses Beginner, Standard or Expert to match the opponent.")
-        segmented("Control scheme", ControlScheme.allCases.map { $0.displayName },
-                  selected: ControlScheme.allCases.firstIndex(of: settings.controls.scheme) ?? 0) { [weak self] i in
-            self?.settings.controls.scheme = ControlScheme.allCases[i]
-        }
-        note("Auto paddle: the paddle moves to the ball and hits it for you. Swipe any time while the ball is coming to pick the shot: up for topspin (fast for power), down for backspin, left or right to place it, a curved swipe for sidespin. No swipe plays a safe return. Finger paddle: the paddle follows your finger and your swipe is the stroke. Drag + flick: drag slowly to position, flick to strike.")
-        slider("Touch offset (finger paddle schemes)", Float(settings.controls.touchOffset), 0...0.25) { [weak self] v in
-            self?.settings.controls.touchOffset = Double(v)
-        }
-        slider("Swipe sensitivity", Float(settings.controls.swipeSensitivity), 0.6...1.6) { [weak self] v in
-            self?.settings.controls.swipeSensitivity = Double(v)
-        }
+        note("How it plays: the paddle moves to the ball and hits it for you. Swipe any time while the ball is coming to pick your shot: up for topspin (fast for power), down for backspin, left or right to place it, a curved swipe for sidespin. No swipe plays a safe return. Assistance sets your reach, how fast the paddle tracks, and how forgiving shots are. \"Match opponent\" uses Beginner, Standard or Expert to match the opponent.")
         segmented("Ball", BallSkin.allCases.map { $0.displayName },
                   selected: BallSkin.allCases.firstIndex(of: settings.ballSkin) ?? 0) { [weak self] i in
             self?.settings.ballSkin = BallSkin.allCases[i]

@@ -63,6 +63,14 @@ public protocol PaddleDriver: AnyObject {
     func update(_ ctx: DriverContext) -> DriverOutput
     /// Final blade angle at the instant of contact.
     func contactNormal(incoming: BallState, paddle: PaddleState, ctx: DriverContext) -> Vec3
+    /// Optional: the outgoing ball for this contact, decided by the shot
+    /// (arcade shot execution). Called right after `contactNormal` for the
+    /// same contact. nil = pure blade physics.
+    func outgoingBall(incoming: BallState, paddle: PaddleState, ctx: DriverContext) -> BallState?
+}
+
+public extension PaddleDriver {
+    func outgoingBall(incoming: BallState, paddle: PaddleState, ctx: DriverContext) -> BallState? { nil }
 }
 
 /// Reachable region for a paddle, mirrored for each side.

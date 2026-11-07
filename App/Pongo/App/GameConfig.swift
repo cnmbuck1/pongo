@@ -93,6 +93,9 @@ struct AppSettings: Codable, Equatable {
     var gameControls: ControlSettings {
         var c = controls
         c.assist = effectiveAssist
+        // Build 3: one control scheme (auto paddle + swipe to pick the shot).
+        // The experimental finger / drag schemes stay in the engine only.
+        c.scheme = .autoTrack
         return c
     }
 

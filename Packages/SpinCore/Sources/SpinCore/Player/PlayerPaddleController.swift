@@ -64,6 +64,11 @@ public final class PlayerPaddleController: PaddleDriver {
     public var eventLog: ((String) -> Void)?
     private var queuedServeIsDefault = false
     private var strokeScale = 1.0
+    private var pendingOutgoing: BallState?
+    /// A shot chosen while the ball was on its way to the opponent; it
+    /// becomes the selection for the next incoming ball.
+    private var preselected: ShotCommand?
+    private var rng = RandomSource(seed: 0x5EED_B477)
     /// Lead (s) between the ideal swipe and contact.
     public static let idealLead = 0.10
     static let autoSwingDuration = 0.085
@@ -109,6 +114,8 @@ public final class PlayerPaddleController: PaddleDriver {
         buffer.clear()
         contactDone = false
         incomingHitTime = -100
+        preselected = nil
+        pendingOutgoing = nil
         queuedServeIsDefault = false
     }
 
@@ -347,6 +354,11 @@ public final class PlayerPaddleController: PaddleDriver {
             strokeScale = 1
             diagnostics.lastMiss = nil
             log("incoming ball")
+            if let pre = preselected {
+                buffer.offer(pre, timing: .good)
+                log("pre-selected shot: \(pre.label)")
+                preselected = nil
+            }
         }
 
         // 1. Input: completed gestures select the shot.
@@ -522,7 +534,13 @@ public final class PlayerPaddleController: PaddleDriver {
     private func completeGesture(_ ctx: DriverContext, incoming: Bool) {
         guard let cmd = GestureInterpreter.interpret(touchPath, tuning: settings.shots,
                                                      spinScale: settings.assist.spinScale) else { return }
-        // Shots are taken from the opponent's hit until our contact.
+        // A swipe while our own shot is on its way pre-selects the next shot.
+        if !incoming, !ctx.ballHeld, ctx.lastHitter == side, ctx.refereePhase != .awaitingServe {
+            preselected = cmd
+            log("shot pre-selected: \(cmd.label)")
+            return
+        }
+        // Otherwise shots are taken from the opponent's hit until our contact.
         guard incoming, !contactDone else {
             log("gesture ignored (\(cmd.label)): ball not incoming")
             return
@@ -579,6 +597,19 @@ public final class PlayerPaddleController: PaddleDriver {
         var yaw = sy + clamp((ry - sy) * (1 - a), -cap, cap)
         if let t = timing { yaw += t.yawError * penalty }
         let n = ShotSolver.faceNormal(for: side, pitch: pitch, yaw: yaw)
+        // The shot decides the outgoing ball (see ShotExecutor).
+        let pressure = clamp((incoming.velocity.length - 6) / 6, 0, 1) * 0.5
+            + clamp((incoming.spin.length - 80) / 150, 0, 1) * 0.3
+            + clamp((abs(incoming.position.x) - 0.4) / 0.5, 0, 1) * 0.4
+        let intent = shotIntent(cmd, timing: timing, chosen: chosen != nil, at: paddle.position, config: config,
+                                incomingPressure: min(pressure, 1))
+        var out = ShotExecutor.execute(from: incoming.position, intent: intent, hitter: side, config: config)
+        if abs(intent.target.z) < 0.1 {
+            // Into the net: the stroke drives the ball down.
+            out.velocity = Vec3(out.velocity.x, min(out.velocity.y, 0) - 0.6, out.velocity.z)
+            log("error: into the net")
+        }
+        pendingOutgoing = out
         // One authoritative contact: the shot is executed and cleared.
         contactDone = true
         strokeTiming = timing
@@ -589,6 +620,93 @@ public final class PlayerPaddleController: PaddleDriver {
         log("contact: \(cmd.label) \(timing?.rawValue ?? "default")")
         buffer.clear()
         return n
+    }
+
+    public func outgoingBall(incoming: BallState, paddle: PaddleState, ctx: DriverContext) -> BallState? {
+        defer { pendingOutgoing = nil }
+        return pendingOutgoing
+    }
+
+    /// Landing target, pace and spin for a shot, with the level's precision
+    /// and the timing quality applied.
+    func shotIntent(_ cmd: ShotCommand, timing: StrokeTiming?, chosen: Bool, at paddlePos: Vec3,
+                    config: PhysicsConfig, incomingPressure: Double = 0) -> ShotExecutor.Intent {
+        let a = settings.assist
+        let p = clamp(cmd.intensity, 0, 1)
+        func mix(_ lo: Double, _ hi: Double) -> Double { lo + (hi - lo) * p }
+        let centre = clamp(-paddlePos.x * 0.25, -0.3, 0.3)
+        let placeX = cmd.placement == 0 ? centre : cmd.placement * 0.55
+        var speed: Double, top: Double, sideSpin = 0.0, depth: Double, x = placeX
+        switch cmd.kind {
+        case .standard:
+            speed = 5.4; top = 40; depth = 0.85
+        case .topspin:
+            speed = mix(6.0, 7.8); top = mix(90, 150); depth = mix(0.95, 1.05)
+        case .powerTopspin:
+            speed = mix(9.0, 11.5); top = mix(160, 230); depth = mix(1.05, 1.12)
+        case .backspin:
+            speed = mix(4.6, 5.0); top = -mix(90, 150); depth = 0.72
+        case .left, .right:
+            speed = mix(5.4, 6.8); top = 40; depth = 0.9
+        case .sidespin:
+            let dir: Double = cmd.sideBrush >= 0 ? 1 : -1
+            speed = mix(5.0, 6.2); top = 20; sideSpin = dir * mix(80, 140); depth = 0.85; x = dir * 0.3
+        }
+        speed *= a.paceScale
+        top *= a.spinScale
+        sideSpin *= a.spinScale
+        // Precision: perfect timing is tight, early/late wide; the default
+        // return's precision depends on the level.
+        let pen = a.timingPenalty
+        // Riskier shots and harder incoming balls spread wider.
+        let risk: Double
+        switch cmd.kind {
+        case .standard, .backspin: risk = 1.0
+        case .topspin: risk = 1.15
+        case .powerTopspin: risk = 1.7
+        case .left, .right: risk = 1.35
+        case .sidespin: risk = 1.3
+        }
+        var sd = a.placementError * risk * (1 + incomingPressure * a.pressureSensitivity)
+        if !chosen {
+            sd *= a.defaultReturnLooseness
+        } else if let t = timing {
+            switch t {
+            case .perfect: sd *= 0.5; speed *= 1.04; top *= 1.1; sideSpin *= 1.1
+            case .good: break
+            case .early: sd *= 1 + 1.2 * pen; speed *= 1 - 0.08 * pen; x += 0.12 * pen
+            case .late: sd *= 1 + 1.2 * pen; speed *= 1 - 0.2 * pen; x -= 0.12 * pen
+            }
+        }
+        // A clear error: long, wide or into the net.
+        var chance = a.errorChance * risk * risk * (1 + 2 * incomingPressure)
+        if !chosen { chance *= 2 } else if let t = timing {
+            switch t {
+            case .perfect: chance *= 0.3
+            case .good: break
+            case .early, .late: chance *= 1 + 1.5 * pen
+            }
+        }
+        var intoNet = false
+        if rng.chance(min(chance, 0.6)) {
+            switch rng.uniform(0, 3) {
+            case ..<1: depth = rng.uniform(1.45, 1.75)                  // long
+            case ..<2: x = (x >= 0 ? 1 : -1) * rng.uniform(0.82, 0.95)  // wide
+            default: intoNet = true
+            }
+        }
+        // Mirror for the far side (placement is as the hitter sees it).
+        let mirror: Double = side == .near ? 1 : -1
+        x = x * mirror + rng.gaussian(sd: sd)
+        depth += rng.gaussian(sd: sd * 0.8)
+        if intoNet { depth = -1 }   // flag for the executor (see below)
+        if a == .beginner {
+            x = clamp(x, -0.62, 0.62); depth = clamp(depth, 0.4, 1.15)
+        } else {
+            x = clamp(x, -0.95, 0.95); depth = intoNet ? 0.05 : clamp(depth, 0.3, 1.8)
+        }
+        let target = Vec3(x, config.table.surfaceHeight, side.opponent.zSign * depth)
+        return ShotExecutor.Intent(target: target, speed: speed, topspin: top, sidespin: sideSpin * mirror)
     }
 
     private func log(_ message: String) {

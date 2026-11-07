@@ -161,15 +161,16 @@ final class AutoContactTests: XCTestCase {
     }
 
     func testDifficultyChangesNoGestureOutcome() {
-        // Same opponent for all three; only the player's assistance changes.
+        // Each assistance level against its own CPU, as in the game.
         // Success = share of the player's turns that ended in a good return.
         func success(_ assist: AssistLevel) -> Double {
-            let r = noGestureMatch(assist: assist, difficulty: .intermediate, seconds: 150)
+            let d: AIDifficulty = assist == .beginner ? .beginner : assist == .standard ? .intermediate : .advanced
+            let r = noGestureMatch(assist: assist, difficulty: d, seconds: 150)
             let lost = r.sim.score.points(.far) + r.sim.score.games(.far) * 11
             return Double(r.returns) / Double(max(r.returns + lost, 1))
         }
         let b = success(.beginner), i = success(.standard), a = success(.expert)
-        print("no-gesture success vs Intermediate CPU: beginner \(b) standard \(i) expert \(a)")
+        print("no-gesture success: beginner \(b) standard \(i) expert \(a)")
         XCTAssertGreaterThan(b, 0.9)
         XCTAssertGreaterThan(b, i)
         XCTAssertGreaterThan(i, a)
@@ -229,6 +230,8 @@ final class AutoContactTests: XCTestCase {
         var paddleAtHit: Vec3?
         var hitRadiusAfterPass = 0.0
         var nearBounce: Vec3?
+        var farBounce: Vec3?
+        var after: BallState?
     }
 
     /// Fires one ball from the far side at the player's paddle and runs the
@@ -264,13 +267,16 @@ final class AutoContactTests: XCTestCase {
             let out = player.update(ctx)
             if i > 0 { f.maxStep = max(f.maxStep, (out.paddle.position - prev).length) }
             prev = out.paddle.position
-            let events = world.step(near: out.paddle, far: far) { _, incoming, paddle in
+            let events = world.step(near: out.paddle, far: far, faceNormal: { _, incoming, paddle in
                 player.contactNormal(incoming: incoming, paddle: paddle, ctx: ctx)
-            }
+            }, outgoing: { _, incoming, paddle in
+                player.outgoingBall(incoming: incoming, paddle: paddle, ctx: ctx)
+            })
             for e in events {
                 if e.kind == .tableBounce && e.side == .near { bounced = true; f.nearBounce = e.point }
+                if e.kind == .tableBounce && e.side == .far && f.hits > 0 && f.farBounce == nil { f.farBounce = e.point }
                 if e.kind == .paddleHit && e.side == .near {
-                    f.hits += 1; f.hitPoint = e.point; f.paddleAtHit = out.paddle.position
+                    f.hits += 1; f.hitPoint = e.point; f.paddleAtHit = out.paddle.position; f.after = e.ballAfter
                     lastHitter = .near
                 }
             }
@@ -313,6 +319,34 @@ final class AutoContactTests: XCTestCase {
         print("wide balls: returned \(returned), out of reach \(outOfReach)")
         XCTAssertGreaterThan(outOfReach, 0)
         XCTAssertGreaterThan(returned, 0)
+    }
+
+    func testEachSwipeProducesADistinctShot() {
+        // Same incoming ball, different swipes: each shot type must come out
+        // clearly different (Beginner has no random errors).
+        func shot(_ g: [GestureInterpreter.Sample]?) -> (speed: Double, top: Double, side: Double, land: Vec3?) {
+            let (f, _) = fly(ball: central, assist: .beginner, gestureAt: g == nil ? nil : 0.15, gesture: g)
+            let r = f.after.map { SpinReading(ball: $0) }
+            return (f.after?.velocity.length ?? 0, r?.topspin ?? 0, r?.sidespin ?? 0, f.farBounce)
+        }
+        let none = shot(nil)
+        let up = shot(path(dx: 0, dy: 0.2))
+        let fast = shot(path(dx: 0, dy: 0.35, duration: 0.09))
+        let down = shot(path(dx: 0, dy: -0.2))
+        let left = shot(path(dx: -0.25, dy: 0))
+        let right = shot(path(dx: 0.25, dy: 0))
+        let curve = shot(path(dx: 0.25, dy: 0, bow: 0.08))
+        for s in [none, up, fast, down, left, right, curve] { XCTAssertNotNil(s.land, "every shot lands on the table") }
+        XCTAssertLessThan(abs(none.top), 60, "standard return: light spin")
+        XCTAssertGreaterThan(up.top, 60, "up = topspin")
+        XCTAssertLessThan(down.top, -60, "down = backspin")
+        XCTAssertGreaterThan(fast.speed, up.speed + 2, "fast up = power")
+        XCTAssertGreaterThan(fast.top, up.top)
+        XCTAssertLessThan(left.land?.x ?? 0, -0.35, "left swipe lands left")
+        XCTAssertGreaterThan(right.land?.x ?? 0, 0.35, "right swipe lands right")
+        XCTAssertLessThan(abs(left.side), 25, "straight sideways swipes add no real sidespin")
+        XCTAssertGreaterThan(curve.side, 50, "curved swipe right = sidespin curving right")
+        XCTAssertGreaterThan(abs((up.land?.z ?? 0) - (down.land?.z ?? 0)), 0.15, "topspin lands deeper than backspin")
     }
 
     func testPaddleOrientationFollowsSelectedShot() {

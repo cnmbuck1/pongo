@@ -33,6 +33,8 @@ public final class AIOpponentController: PaddleDriver {
         var faceNormal: Vec3
         var aimErrorScale: Double
         var refined: Bool
+        /// A misjudgement kept through refinement (a real mistake).
+        var mistakeOffset: Vec3 = .zero
     }
     private var plan: Plan? {
         didSet { if let p = plan { debugLog?("plan t=\(p.contactTime) cp=\(p.contactPoint) swing=\(p.swingVelocity) serve=\(p.goal.isServe) target=\(p.goal.target)") } }
@@ -207,17 +209,26 @@ public final class AIOpponentController: PaddleDriver {
             errorOffset = errorOffset * 0.5
             let face = ShotSolver.solve(incoming: ic.ball, paddleVelocity: old.swingVelocity, goal: old.goal,
                                         config: ctx.config).normal
-            let cp = ic.point + errorOffset - face * (ctx.config.ball.radius + ctx.config.paddleHalfThickness)
+            let cp = ic.point + errorOffset + old.mistakeOffset
+                - face * (ctx.config.ball.radius + ctx.config.paddleHalfThickness)
             plan = Plan(contactTime: ctx.time + ic.timeFromNow, contactPoint: cp, swingVelocity: old.swingVelocity,
-                        goal: old.goal, faceNormal: face, aimErrorScale: aimScale, refined: true)
+                        goal: old.goal, faceNormal: face, aimErrorScale: aimScale, refined: true,
+                        mistakeOffset: old.mistakeOffset)
             return
         }
-        if rng.chance(profile.mistakeProbability) {
+        // Pressure: fast, heavily spun or wide balls cause more mistakes.
+        let b = ctx.ball
+        let pressure = clamp((b.velocity.length - 6) / 6, 0, 1) * 0.5
+            + clamp((b.spin.length - 80) / 150, 0, 1) * 0.3
+            + clamp((abs(ic.point.x) - 0.4) / 0.5, 0, 1) * 0.4
+        var mistake = Vec3.zero
+        if rng.chance(profile.mistakeProbability + min(pressure, 1) * profile.pressureMistakes) {
             if rng.chance(0.5) {
                 // Misjudges the ball.
-                errorOffset += Vec3(rng.uniform(-1, 1) * 0.11, rng.uniform(-1, 1) * 0.09, 0)
+                func off(_ lo: Double, _ hi: Double) -> Double { (rng.chance(0.5) ? -1 : 1) * rng.uniform(lo, hi) }
+                mistake = Vec3(off(0.07, 0.16), off(0.04, 0.1), 0)
             } else {
-                aimScale = 5
+                aimScale = 9
             }
         }
         let goal = ShotSolver.Goal(hitter: side, isServe: false, target: chooseTarget(ctx: ctx))
@@ -235,9 +246,10 @@ public final class AIOpponentController: PaddleDriver {
             if sol.evaluation.landsLegally && sol.evaluation.score < 0.45 && pace <= profile.maxShotSpeed { break }
         }
         let (sol, swing, _) = best!
-        let cp = ic.point + errorOffset - sol.normal * (ctx.config.ball.radius + ctx.config.paddleHalfThickness)
+        let cp = ic.point + errorOffset + mistake - sol.normal * (ctx.config.ball.radius + ctx.config.paddleHalfThickness)
         plan = Plan(contactTime: ctx.time + ic.timeFromNow, contactPoint: cp, swingVelocity: swing,
-                    goal: goal, faceNormal: sol.normal, aimErrorScale: aimScale, refined: false)
+                    goal: goal, faceNormal: sol.normal, aimErrorScale: aimScale, refined: false,
+                    mistakeOffset: mistake)
     }
 
     // MARK: Contact

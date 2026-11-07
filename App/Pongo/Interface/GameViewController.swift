@@ -12,10 +12,10 @@ final class GameViewController: UIViewController {
 
     // HUD
     // Scoreboard: YOU 01 | GAME 1 | CPU 07, games won in small type.
-    private let playerScore = makeLabel("00", size: 26, weight: .heavy, color: Palette.cyan)
-    private let opponentScore = makeLabel("00", size: 26, weight: .heavy, color: Palette.violet)
-    private let playerName = makeLabel("YOU", size: 12, weight: .bold, color: Palette.cyan, kern: 2)
-    private let opponentName = makeLabel("CPU", size: 12, weight: .bold, color: Palette.violet, kern: 2)
+    private let playerScore = makeLabel("00", size: 24, weight: .heavy, color: Palette.cyan)
+    private let opponentScore = makeLabel("00", size: 24, weight: .heavy, color: Palette.violet)
+    private let playerName = makeLabel("YOU", size: 11, weight: .bold, color: Palette.cyan, kern: 1.5)
+    private let opponentName = makeLabel("CPU", size: 11, weight: .bold, color: Palette.violet, kern: 1.5)
     private let gameLabel = makeLabel("GAME 1", size: 12, weight: .heavy, color: Palette.white, kern: 3)
     private let gamesLabel = makeLabel("GAMES 0–0", size: 9, weight: .semibold, color: Palette.textDim, kern: 1)
     private let playerServe = UIView()
@@ -155,8 +155,24 @@ final class GameViewController: UIViewController {
         middle.spacing = 1
         let bar = UIStackView(arrangedSubviews: [left, middle, right])
         bar.axis = .horizontal
-        bar.distribution = .equalCentering
+        bar.distribution = .fill
+        bar.spacing = 8
         bar.alignment = .center
+        // Scores and names never truncate; the middle column shrinks instead
+        // (narrow iPhones and Display Zoom).
+        for v in [playerScore, opponentScore, playerName, opponentName, playerServe, opponentServe] {
+            v.setContentCompressionResistancePriority(.required, for: .horizontal)
+            v.setContentHuggingPriority(.required, for: .horizontal)
+        }
+        for l in [gameLabel, gamesLabel] {
+            l.adjustsFontSizeToFitWidth = true
+            l.minimumScaleFactor = 0.55
+            l.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        }
+        middle.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        middle.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        left.spacing = 5
+        right.spacing = 5
         bar.translatesAutoresizingMaskIntoConstraints = false
 
         let barBG = UIView()
@@ -178,6 +194,8 @@ final class GameViewController: UIViewController {
         view.addSubview(pauseButton)
 
         callout.alpha = 0
+        callout.adjustsFontSizeToFitWidth = true
+        callout.minimumScaleFactor = 0.5
         callout.layer.shadowColor = Palette.cyan.cgColor
         callout.layer.shadowRadius = 12
         callout.layer.shadowOpacity = 0.8
@@ -227,8 +245,8 @@ final class GameViewController: UIViewController {
         let g = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
             bar.topAnchor.constraint(equalTo: g.topAnchor, constant: 10),
-            bar.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 30),
-            bar.trailingAnchor.constraint(equalTo: g.trailingAnchor, constant: -80),
+            bar.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 26),
+            bar.trailingAnchor.constraint(equalTo: pauseButton.leadingAnchor, constant: -22),
             barBG.topAnchor.constraint(equalTo: bar.topAnchor, constant: -6),
             barBG.bottomAnchor.constraint(equalTo: bar.bottomAnchor, constant: 6),
             barBG.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: -18),
@@ -239,6 +257,8 @@ final class GameViewController: UIViewController {
             pauseButton.heightAnchor.constraint(equalToConstant: 40),
             callout.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             callout.topAnchor.constraint(equalTo: barBG.bottomAnchor, constant: 40),
+            callout.leadingAnchor.constraint(greaterThanOrEqualTo: g.leadingAnchor, constant: 16),
+            callout.trailingAnchor.constraint(lessThanOrEqualTo: g.trailingAnchor, constant: -16),
             tutorial.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             tutorial.bottomAnchor.constraint(equalTo: g.bottomAnchor, constant: -70),
             shotLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -381,6 +401,11 @@ final class GameViewController: UIViewController {
     // MARK: Events → audio / haptics / HUD
 
     private func handle(_ events: [GameEvent]) {
+        let decided = events.contains { e in
+            if case .gameWon = e { return true }
+            if case .matchWon = e { return true }
+            return false
+        }
         for e in events {
             switch e {
             case let .physics(p):
@@ -440,6 +465,11 @@ final class GameViewController: UIViewController {
                     }
                 } else {
                     flash(winner == .near ? "POINT" : missDescription(reason), color: winner == .near ? Palette.cyan : Palette.violet)
+                    if !decided, let call = scoreCall() {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                            self?.flash(call.text, color: call.color)
+                        }
+                    }
                 }
             case .letCalled:
                 flash("LET")
@@ -447,6 +477,8 @@ final class GameViewController: UIViewController {
                 flash(by == .near ? "GAME \(game) – YOU" : "GAME \(game) – CPU", color: by == .near ? Palette.cyan : Palette.violet)
             case let .matchWon(by):
                 SoundManager.shared.play(by == .near ? .victory : .defeat)
+                flash(by == .near ? "GAME, SET, MATCH – YOU" : "GAME, SET, MATCH – CPU",
+                      color: by == .near ? Palette.cyan : Palette.violet)
             case let .phaseChanged(p):
                 if p == .ready, mode == .match {
                     let n = host.withSim { $0.score.gameNumber }
@@ -479,6 +511,24 @@ final class GameViewController: UIViewController {
 
     private func refreshTrainingTarget() {
         host.withSim { _ in host.renderer.showTarget(module?.target(attempt: attempts), radius: TrainingModule.targetRadius) }
+    }
+
+    /// Umpire calls after a point: DEUCE at 10–10 (and every tie after),
+    /// GAME POINT / MATCH POINT when a side is one point from winning.
+    private func scoreCall() -> (text: String, color: UIColor)? {
+        let score = host.withSim { $0.score }
+        guard score.matchWinner == nil else { return nil }
+        let f = score.format
+        let n = score.points(.near), c = score.points(.far)
+        if score.isDeuce && n == c { return ("DEUCE", Palette.white) }
+        for side in [Side.near, .far] {
+            let me = score.points(side), them = score.points(side.opponent)
+            guard me >= f.pointsToWinGame - 1, me - them >= f.winByMargin - 1, me > them else { continue }
+            let match = score.games(side) == f.gamesToWinMatch - 1
+            let who = side == .near ? "" : " – CPU"
+            return ((match ? "MATCH POINT" : "GAME POINT") + who, side == .near ? Palette.cyan : Palette.violet)
+        }
+        return nil
     }
 
     /// Why the player lost the point: the paddle's own reason when the ball

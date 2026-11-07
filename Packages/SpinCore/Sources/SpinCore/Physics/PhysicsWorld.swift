@@ -36,8 +36,11 @@ public struct PhysicsWorld: Codable {
     /// - Parameters:
     ///   - near/far: paddle states at the *end* of this tick. Paddle motion is
     ///     interpolated linearly from the previous tick during sub-steps.
+    public typealias OutgoingProvider = (_ side: Side, _ incoming: BallState, _ paddle: PaddleState) -> BallState?
+
     public mutating func step(near: PaddleState, far: PaddleState,
-                              faceNormal: FaceNormalProvider) -> [PhysicsEvent] {
+                              faceNormal: FaceNormalProvider,
+                              outgoing: OutgoingProvider? = nil) -> [PhysicsEvent] {
         let dt = config.fixedTimestep
         let prevNear = nearPaddle, prevFar = farPaddle
         nearPaddle = near
@@ -70,6 +73,11 @@ public struct PhysicsWorld: Codable {
                 let face = faceNormal(side, incoming, p)
                 if let res = PaddleCollision.resolve(ball: &ball, paddle: p, faceNormal: face,
                                                      lateralOffset: lateral, config: config) {
+                    if let o = outgoing?(side, incoming, p) {
+                        // The shot decides the flight; the ball leaves from the face.
+                        ball.velocity = o.velocity
+                        ball.spin = o.spin
+                    }
                     lastContactTime[side] = tNow
                     events.append(PhysicsEvent(kind: .paddleHit, side: side, point: ball.position,
                                                impactSpeed: res.normalSpeed, ballAfter: ball, time: tNow))

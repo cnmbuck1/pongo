@@ -33,11 +33,13 @@ public struct ShotCommand: Equatable {
     public var forward: Double
     /// When the gesture was completed (simulation time).
     public var time: Double
+    /// 0...1 from swipe speed: faster swipes hit harder and spin more.
+    public var intensity: Double
 
     public init(kind: ShotKind, placement: Double = 0, brush: Double, sideBrush: Double = 0,
-                forward: Double, time: Double = 0) {
+                forward: Double, time: Double = 0, intensity: Double = 0.5) {
         self.kind = kind; self.placement = placement; self.brush = brush
-        self.sideBrush = sideBrush; self.forward = forward; self.time = time
+        self.sideBrush = sideBrush; self.forward = forward; self.time = time; self.intensity = intensity
     }
 
     /// Short label shown while the shot is buffered, e.g. "TOPSPIN · LEFT".
@@ -166,37 +168,39 @@ public enum GestureInterpreter {
         let angleFromVertical = atan2(abs(dx), abs(dy)) * 180 / .pi
         let time = last.t
         if curved {
-            // A brushing arc: sidespin. The ball curves the way the arc bows
-            // out; placement follows the swipe's sideways travel only lightly.
-            let dir: Double = bulge > 0 ? 1 : -1
-            return ShotCommand(kind: .sidespin, placement: clamp(dx / length, -1, 1) * 0.35,
+            // A brushing arc: sidespin. The ball curves the way the swipe
+            // travels (or, for a mostly vertical arc, the way it bows out).
+            let dir: Double = abs(dx) / length > 0.3 ? (dx > 0 ? 1 : -1) : (bulge > 0 ? 1 : -1)
+            return ShotCommand(kind: .sidespin, placement: 0,
                                brush: tuning.standard.brush, sideBrush: dir * lerp(tuning.sideBrush, p) * spinScale,
-                               forward: lerp(tuning.placementForward, p * 0.6), time: time)
+                               forward: lerp(tuning.placementForward, p * 0.6), time: time, intensity: p)
         }
         if angleFromVertical <= tuning.verticalCone {
             if dy > 0 {
                 let power = speed >= tuning.powerSpeed
                 return ShotCommand(kind: power ? .powerTopspin : .topspin, placement: clamp(dx / length, -1, 1) * 0.5,
                                    brush: lerp(power ? tuning.powerBrush : tuning.topspinBrush, p) * spinScale,
-                                   forward: lerp(power ? tuning.powerForward : tuning.topspinForward, p), time: time)
+                                   forward: lerp(power ? tuning.powerForward : tuning.topspinForward, p), time: time,
+                                   intensity: p)
             }
             return ShotCommand(kind: .backspin, placement: clamp(dx / length, -1, 1) * 0.5,
                                brush: lerp(tuning.backspinBrush, 1 - p) * spinScale,
-                               forward: lerp(tuning.backspinForward, p), time: time)
+                               forward: lerp(tuning.backspinForward, p), time: time, intensity: p)
         }
         if 90 - angleFromVertical <= tuning.horizontalCone {
             // Straight sideways: placement only, no sidespin.
             return ShotCommand(kind: dx < 0 ? .left : .right, placement: dx < 0 ? -1 : 1,
-                               brush: tuning.standard.brush, forward: lerp(tuning.placementForward, p), time: time)
+                               brush: tuning.standard.brush, forward: lerp(tuning.placementForward, p), time: time,
+                               intensity: p)
         }
         // Diagonal: directional topspin / backspin.
         let place = (dx < 0 ? -1.0 : 1.0) * tuning.diagonalPlacement
         if dy > 0 {
             return ShotCommand(kind: .topspin, placement: place, brush: lerp(tuning.topspinBrush, p) * spinScale,
-                               forward: lerp(tuning.topspinForward, p), time: time)
+                               forward: lerp(tuning.topspinForward, p), time: time, intensity: p)
         }
         return ShotCommand(kind: .backspin, placement: place, brush: lerp(tuning.backspinBrush, 1 - p) * spinScale,
-                           forward: lerp(tuning.backspinForward, p), time: time)
+                           forward: lerp(tuning.backspinForward, p), time: time, intensity: p)
     }
 }
 

@@ -61,15 +61,15 @@ public enum AssistLevel: String, Codable, CaseIterable {
 
     /// Top tracking speed (m/s) of the auto-positioned paddle.
     public var trackSpeed: Double {
-        switch self { case .beginner: return 4.6; case .standard: return 3.8; case .expert: return 3.1 }
+        switch self { case .beginner: return 4.6; case .standard: return 4.2; case .expert: return 4.0 }
     }
     /// Tracking acceleration limit (m/s²).
     public var trackAcceleration: Double {
-        switch self { case .beginner: return 32; case .standard: return 24; case .expert: return 17 }
+        switch self { case .beginner: return 32; case .standard: return 28; case .expert: return 26 }
     }
     /// Delay (s) after the opponent's hit before the paddle starts tracking.
     public var reactionDelay: Double {
-        switch self { case .beginner: return 0.06; case .standard: return 0.12; case .expert: return 0.18 }
+        switch self { case .beginner: return 0.06; case .standard: return 0.10; case .expert: return 0.14 }
     }
     // MARK: Build 3 auto contact
 
@@ -91,7 +91,7 @@ public enum AssistLevel: String, Codable, CaseIterable {
     }
     /// How far (m) either side of the centre line the paddle can intercept.
     public var lateralReach: Double {
-        switch self { case .beginner: return 1.2; case .standard: return 1.08; case .expert: return 1.0 }
+        switch self { case .beginner: return 1.2; case .standard: return 1.15; case .expert: return 1.12 }
     }
     /// Heights (m) between which the paddle can intercept.
     public var heightReach: ClosedRange<Double> {
@@ -106,9 +106,28 @@ public enum AssistLevel: String, Codable, CaseIterable {
     public var maxAimError: Double {
         switch self { case .beginner: return 0.012; case .standard: return 0.03; case .expert: return 0.06 }
     }
+    /// Standard deviation (m) of where a good shot lands around its target.
+    public var placementError: Double {
+        switch self { case .beginner: return 0.035; case .standard: return 0.10; case .expert: return 0.14 }
+    }
+    /// How much a hard incoming ball (fast, spinny, wide) widens the
+    /// player's own shot error.
+    public var pressureSensitivity: Double {
+        switch self { case .beginner: return 0.3; case .standard: return 1.4; case .expert: return 1.8 }
+    }
+    /// Base chance (per shot) of a clear error (long, wide or into the net)
+    /// for a well-timed, chosen, low-risk shot. Risk, pressure, timing and
+    /// the default return raise it.
+    public var errorChance: Double {
+        switch self { case .beginner: return 0.0; case .standard: return 0.025; case .expert: return 0.04 }
+    }
+    /// Multiplies the pace of every shot.
+    public var paceScale: Double {
+        switch self { case .beginner: return 0.88; case .standard: return 1.0; case .expert: return 1.06 }
+    }
     /// Multiplies the residual blade error of the default return (no gesture).
     public var defaultReturnLooseness: Double {
-        switch self { case .beginner: return 1.0; case .standard: return 2.2; case .expert: return 2.6 }
+        switch self { case .beginner: return 1.0; case .standard: return 1.8; case .expert: return 2.4 }
     }
     /// When on, a selected stroke that could not land (too hard for this
     /// ball) is eased off before contact, the way a coach would temper it.

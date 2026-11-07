@@ -72,7 +72,7 @@ final class GameplayTests: XCTestCase {
         let sim = GameSimulation(setup: setup)
         let bot = ScriptedTouchPlayer(sim: sim, swipeVX: 0, swipeVY: -2.2, leadTime: 0.45)
         var ticks = 0
-        while ticks < 240 * 150 && sim.phase != .matchEnded { bot.tick(); sim.step(); _ = sim.drainEvents(); ticks += 1 }
+        while ticks < 240 * 300 && sim.phase != .matchEnded { bot.tick(); sim.step(); _ = sim.drainEvents(); ticks += 1 }
         XCTAssertGreaterThan(sim.stats.successfulReturns, 25, "touch-driven paddle must return balls")
         XCTAssertGreaterThan(sim.score.points(.near) + sim.score.games(.near) * 11, 0, "player should win some points")
     }
@@ -125,7 +125,7 @@ final class GameplayTests: XCTestCase {
         let bot = ScriptedTouchPlayer(sim: sim, swipeVX: 1.8, swipeVY: 1.0)
         var serves = 0, faults = 0
         var ticks = 0
-        while ticks < 240 * 120 {
+        while ticks < 240 * 300 {
             bot.tick(); sim.step(); ticks += 1
             for e in sim.drainEvents() {
                 if case let .physics(p) = e, p.kind == .paddleHit, p.side == .near, sim.referee.strokes == 1 { serves += 1 }

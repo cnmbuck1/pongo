@@ -235,10 +235,13 @@ public final class GameSimulation {
             }
         }
 
-        let events = world.step(near: nearOut.paddle, far: farOut.paddle) { [unowned self] side, incoming, paddle in
+        let events = world.step(near: nearOut.paddle, far: farOut.paddle, faceNormal: { [unowned self] side, incoming, paddle in
             let ctx = side == .near ? nearCtx : farCtx
             return self.driver(side).contactNormal(incoming: incoming, paddle: paddle, ctx: ctx)
-        }
+        }, outgoing: { [unowned self] side, incoming, paddle in
+            let ctx = side == .near ? nearCtx : farCtx
+            return self.driver(side).outgoingBall(incoming: incoming, paddle: paddle, ctx: ctx)
+        })
 
         for e in events { process(e) }
 

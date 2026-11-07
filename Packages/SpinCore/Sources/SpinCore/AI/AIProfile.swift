@@ -49,22 +49,28 @@ public struct AIProfile: Codable, Equatable {
     public var strategicPlacement: Bool
     /// Preferred upper limit on outgoing ball speed (m/s).
     public var maxShotSpeed: Double
+    /// Extra mistake probability at full pressure (fast, spinny or wide
+    /// incoming balls), so the player's shot choice wins points.
+    public var pressureMistakes: Double = 0.3
 
     public static let beginner = AIProfile(
         name: "Rookie", reactionDelay: 0.2, maxSpeed: 2.7, maxAcceleration: 15,
         predictionError: 0.02, aimErrorDegrees: 2.0, mistakeProbability: 0.07,
         spinPreference: 0.12, topspinBias: 0.2, sidespinPreference: 0.0,
-        aggressiveness: 0.12, placementWidth: 0.2, strategicPlacement: false, maxShotSpeed: 6.0)
+        aggressiveness: 0.12, placementWidth: 0.2, strategicPlacement: false, maxShotSpeed: 6.0,
+        pressureMistakes: 0.5)
 
     public static let intermediate = AIProfile(
         name: "Contender", reactionDelay: 0.17, maxSpeed: 3.0, maxAcceleration: 17,
-        predictionError: 0.012, aimErrorDegrees: 1.3, mistakeProbability: 0.05,
+        predictionError: 0.012, aimErrorDegrees: 1.3, mistakeProbability: 0.07,
         spinPreference: 0.45, topspinBias: 0.5, sidespinPreference: 0.25,
-        aggressiveness: 0.42, placementWidth: 0.55, strategicPlacement: false, maxShotSpeed: 8.5)
+        aggressiveness: 0.42, placementWidth: 0.55, strategicPlacement: false, maxShotSpeed: 8.5,
+        pressureMistakes: 0.3)
 
     public static let advanced = AIProfile(
         name: "Vector", reactionDelay: 0.11, maxSpeed: 3.8, maxAcceleration: 24,
         predictionError: 0.006, aimErrorDegrees: 0.7, mistakeProbability: 0.025,
         spinPreference: 0.85, topspinBias: 0.45, sidespinPreference: 0.45,
-        aggressiveness: 0.7, placementWidth: 0.85, strategicPlacement: true, maxShotSpeed: 11)
+        aggressiveness: 0.7, placementWidth: 0.85, strategicPlacement: true, maxShotSpeed: 11,
+        pressureMistakes: 0.25)
 }
