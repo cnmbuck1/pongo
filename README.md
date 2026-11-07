@@ -11,7 +11,7 @@ Pongo is an arcade table tennis game built physics first. The ball carries a rea
 ## Build and run
 
 ### Requirements
-- macOS with **Xcode 15 or later**. The project uses the objectVersion 60 format and a local Swift package.
+- macOS with **Xcode 15 or later** to build and run (the project uses the objectVersion 60 format and a local Swift package). Uploading to TestFlight or the App Store needs **Xcode 26 or later**, because Apple requires the iOS 26 SDK.
 - iOS 15 or later. The app targets iPhone only, in portrait.
 
 ### In the iOS Simulator

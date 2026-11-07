@@ -8,7 +8,7 @@ on:
 jobs:
   spincore-tests:
     name: SpinCore tests (swift test)
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -20,12 +20,15 @@ jobs:
 
   ios-build:
     name: iOS app build (xcodebuild, simulator)
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Show Xcode
-        run: xcodebuild -version
+      - name: Select Xcode 26
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$X" ]; then sudo xcode-select -s "$X"; fi
+          xcodebuild -version
       - name: Build Pongo for iOS Simulator
         run: |
           set -o pipefail
