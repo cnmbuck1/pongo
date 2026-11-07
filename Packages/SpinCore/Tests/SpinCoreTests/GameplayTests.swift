@@ -70,7 +70,7 @@ final class GameplayTests: XCTestCase {
         setup.controls.assist = .standard
         setup.difficulty = .intermediate
         let sim = GameSimulation(setup: setup)
-        let bot = ScriptedTouchPlayer(sim: sim, swipeVX: 0, swipeVY: -2.2)
+        let bot = ScriptedTouchPlayer(sim: sim, swipeVX: 0, swipeVY: -2.2, leadTime: 0.45)
         var ticks = 0
         while ticks < 240 * 150 && sim.phase != .matchEnded { bot.tick(); sim.step(); _ = sim.drainEvents(); ticks += 1 }
         XCTAssertGreaterThan(sim.stats.successfulReturns, 25, "touch-driven paddle must return balls")
@@ -93,23 +93,15 @@ final class GameplayTests: XCTestCase {
         return sim.stats.successfulReturns
     }
 
-    func testAutoPaddleReturnsWellTimedSwipes() {
-        // Light-topspin swipes; Expert is harder (slower tracking, later
-        // reaction, tighter windows, less blade assistance).
-        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .beginner), 25)
-        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .standard), 20)
-        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .expert), 4)
-        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .standard, swipeVY: -2.2), 20, "backspin")
-    }
-
-    func testAutoPaddleNeedsASwipe() {
-        XCTAssertEqual(returns(scheme: .autoTrack, assist: .beginner, swipes: false, seconds: 40), 0,
-                       "without a swipe the paddle must not return the ball")
-    }
-
-    func testAutoPaddleIgnoresFarTooEarlySwipes() {
-        // Swiping half a second before contact is outside every window.
-        XCTAssertEqual(returns(scheme: .autoTrack, assist: .expert, leadTime: 0.55, seconds: 40), 0)
+    func testAutoPaddleReturnsSelectedShots() {
+        // Swipes made well before contact select the shot; the paddle
+        // executes it. Expert is harder (slower tracking, later reaction,
+        // stronger timing penalties, less blade assistance).
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .beginner, leadTime: 0.45), 25)
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .standard, leadTime: 0.45), 20)
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .expert, leadTime: 0.45), 4)
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .standard, leadTime: 0.45, swipeVY: -2.2), 20,
+                             "backspin")
     }
 
     func testTimingWindowsClassify() {

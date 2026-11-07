@@ -35,6 +35,14 @@ final class GameViewController: UIViewController {
     private var serveTutorialActive = false
     private var hitTutorialActive = false
     private var lastTiming: StrokeTiming?
+    // Selected-shot feedback (Build 3): a small label naming the buffered
+    // shot, then the executed shot and its timing for a moment after contact.
+    private let shotLabel = makeLabel("", size: 14, weight: .heavy, color: Palette.white, kern: 3)
+    private var shotFeedbackUntil: CFTimeInterval = 0
+    // Developer diagnostics (launch argument -PongoDebug only).
+    private let debugEnabled = ProcessInfo.processInfo.arguments.contains("-PongoDebug")
+    private let debugLabel = UILabel()
+    private let debugLog = DebugLog()
 
     // Training module scoring.
     private let module: TrainingModule?
@@ -175,7 +183,26 @@ final class GameViewController: UIViewController {
         callout.layer.shadowOpacity = 0.8
         callout.layer.shadowOffset = .zero
         hint.numberOfLines = 0
-        [callout, hint, contactReadout, tutorial].forEach { view.addSubview($0) }
+        [callout, hint, contactReadout, tutorial, shotLabel].forEach { view.addSubview($0) }
+        shotLabel.alpha = 0
+        shotLabel.isUserInteractionEnabled = false
+        if debugEnabled {
+            debugLabel.translatesAutoresizingMaskIntoConstraints = false
+            debugLabel.numberOfLines = 0
+            debugLabel.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
+            debugLabel.textColor = UIColor(white: 1, alpha: 0.9)
+            debugLabel.backgroundColor = UIColor(white: 0, alpha: 0.55)
+            debugLabel.isUserInteractionEnabled = false
+            view.addSubview(debugLabel)
+            NSLayoutConstraint.activate([
+                debugLabel.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 6),
+                debugLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -6),
+                debugLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 120)
+            ])
+            let log = debugLog
+            host.withSim { $0.player?.eventLog = { log.append($0) } }
+            host.renderer.debugVisuals = true
+        }
         tutorial.layer.shadowColor = Palette.cyan.cgColor
         tutorial.layer.shadowRadius = 10
         tutorial.layer.shadowOpacity = 0.7
@@ -214,6 +241,8 @@ final class GameViewController: UIViewController {
             callout.topAnchor.constraint(equalTo: barBG.bottomAnchor, constant: 40),
             tutorial.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             tutorial.bottomAnchor.constraint(equalTo: g.bottomAnchor, constant: -70),
+            shotLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            shotLabel.bottomAnchor.constraint(equalTo: g.bottomAnchor, constant: -112),
             hint.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             hint.bottomAnchor.constraint(equalTo: g.bottomAnchor, constant: -28),
             hint.leadingAnchor.constraint(greaterThanOrEqualTo: g.leadingAnchor, constant: 24),
@@ -260,9 +289,13 @@ final class GameViewController: UIViewController {
         }
         var text = ""
         if serveTutorialActive && phase == .serving && server == .near {
-            text = held ? "TAP TO TOSS" : "SWIPE TO SERVE"
+            if settings.gameControls.assist == .beginner {
+                text = held ? "TAP TO SERVE" : ""
+            } else {
+                text = held ? "TAP TO TOSS" : "SWIPE TO SERVE"
+            }
         } else if hitTutorialActive && incoming {
-            text = module?.prompt ?? "SWIPE UP TO HIT"
+            text = module?.prompt ?? "SWIPE TO PICK A SHOT"
         }
         if text != tutorialText { setTutorial(text) }
     }
@@ -283,11 +316,52 @@ final class GameViewController: UIViewController {
 
     @objc private func hudTick() {
         updateTutorial()
+        updateShotLabel()
+        if debugEnabled { updateDebug() }
         guard spinIndicator.isHidden == false else { return }
         let reading: SpinReading? = host.withSim { sim in
             sim.world.ballHeld ? nil : SpinReading(ball: sim.world.ball)
         }
         spinIndicator.show(reading)
+    }
+
+    private func updateShotLabel() {
+        guard CACurrentMediaTime() > shotFeedbackUntil else { return }
+        let buffered = host.withSim { $0.player?.buffer.command }
+        if let b = buffered {
+            setShotLabel(b.label, color: Palette.cyan, alpha: 0.9)
+        } else if shotLabel.alpha > 0 {
+            UIView.animate(withDuration: 0.25) { self.shotLabel.alpha = 0 }
+        }
+    }
+
+    private func setShotLabel(_ text: String, color: UIColor, alpha: CGFloat) {
+        if shotLabel.text != text {
+            shotLabel.attributedText = NSAttributedString(string: text, attributes: [
+                .kern: 3, .font: shotLabel.font!, .foregroundColor: color])
+        }
+        shotLabel.alpha = alpha
+    }
+
+    private func updateDebug() {
+        let text: String = host.withSim { sim in
+            guard let p = sim.player else { return "" }
+            let d = p.diagnostics
+            let b = sim.world.ball
+            func v(_ x: Vec3?) -> String { x.map { String(format: "%5.2f %5.2f %5.2f", $0.x, $0.y, $0.z) } ?? "-" }
+            let spin = SpinReading(ball: b)
+            return [
+                "ball v   " + v(b.velocity) + String(format: "  |%.1f|", b.velocity.length),
+                "spin     " + String(format: "top %.0f side %.0f rpm", spin.topspin * 60 / (2 * .pi), spin.sidespin * 60 / (2 * .pi)),
+                "icept    " + v(d.interceptPoint) + (d.reachable ? "  reach" : "  -"),
+                "target   " + v(d.targetPosition),
+                "paddle   " + v(d.actualPosition),
+                "eligible \(d.contactEligible)  ttc " + (d.timeToContact.map { String(format: "%.2f", $0) } ?? "-"),
+                "buffer   \(d.bufferedShot?.label ?? "-") \(d.bufferedTiming?.rawValue ?? "")",
+                "last     \(d.lastShot?.label ?? "-") \(d.lastTiming?.rawValue ?? "")  miss \(d.lastMiss?.rawValue ?? "-")"
+            ].joined(separator: "\n")
+        }
+        debugLabel.text = text + "\n" + debugLog.tail(6).joined(separator: "\n")
     }
 
     private func flash(_ text: String, color: UIColor = Palette.white) {
@@ -318,6 +392,15 @@ final class GameViewController: UIViewController {
                     SoundManager.shared.play(timing == .perfect ? .perfect : .paddle, strength: strength)
                     if p.side == .near {
                         lastTiming = timing
+                        let executed = host.withSim { sim -> String? in
+                            guard let pl = sim.player, sim.referee.strokes > 1 else { return nil }
+                            return pl.diagnostics.lastShot?.label
+                        }
+                        if let shot = executed {
+                            let t = timing.map { " · " + $0.rawValue.uppercased() } ?? ""
+                            setShotLabel(shot + t, color: timing == .perfect ? Palette.cyan : Palette.white, alpha: 1)
+                            shotFeedbackUntil = CACurrentMediaTime() + 0.8
+                        }
                         let power = min(1, p.ballAfter.velocity.length / 14)
                         HapticManager.shared.paddleContact(power: power)
                         let strokes = host.withSim { $0.referee.strokes }
@@ -352,11 +435,11 @@ final class GameViewController: UIViewController {
                         finishAttempt(spin: spin, landing: nil)
                     } else if winner == .far {
                         attempts += 1
-                        flash(describe(reason), color: Palette.white)
+                        flash(missDescription(reason), color: Palette.white)
                         refreshTrainingTarget()
                     }
                 } else {
-                    flash(winner == .near ? "POINT" : describe(reason), color: winner == .near ? Palette.cyan : Palette.violet)
+                    flash(winner == .near ? "POINT" : missDescription(reason), color: winner == .near ? Palette.cyan : Palette.violet)
                 }
             case .letCalled:
                 flash("LET")
@@ -396,6 +479,19 @@ final class GameViewController: UIViewController {
 
     private func refreshTrainingTarget() {
         host.withSim { _ in host.renderer.showTarget(module?.target(attempt: attempts), radius: TrainingModule.targetRadius) }
+    }
+
+    /// Why the player lost the point: the paddle's own reason when the ball
+    /// got past it (out of reach / too fast), otherwise the rules reason.
+    private func missDescription(_ r: PointReason) -> String {
+        let (miss, lastHitter) = host.withSim { ($0.player?.diagnostics.lastMiss, $0.referee.lastHitter) }
+        if lastHitter == .far, let m = miss {
+            switch m {
+            case .outOfReach: return "OUT OF REACH"
+            case .lateContact: return settings.gameControls.assist == .beginner ? "TOO FAST" : "LATE"
+            }
+        }
+        return describe(r)
     }
 
     private func describe(_ r: PointReason) -> String {
@@ -555,5 +651,21 @@ final class GameViewController: UIViewController {
         guard let o = overlay else { return }
         overlay = nil
         UIView.animate(withDuration: 0.15, animations: { o.alpha = 0 }, completion: { _ in o.removeFromSuperview() })
+    }
+}
+
+/// Thread-safe ring buffer for the developer event log.
+final class DebugLog {
+    private var lines: [String] = []
+    private let lock = NSLock()
+    func append(_ line: String) {
+        lock.lock(); defer { lock.unlock() }
+        lines.append(line)
+        if lines.count > 40 { lines.removeFirst(lines.count - 40) }
+        NSLog("PONGO %@", line)
+    }
+    func tail(_ n: Int) -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        return Array(lines.suffix(n))
     }
 }

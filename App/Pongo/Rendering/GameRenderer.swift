@@ -188,7 +188,62 @@ final class GameRenderer {
         shotPower = max(shotPower, strength)
     }
 
+    // MARK: Developer debug visuals (-PongoDebug)
+
+    var debugVisuals = false
+    private var debugNodes: (intercept: SCNNode, target: SCNNode, reach: SCNNode)?
+
+    private func debugMarker(_ color: UIColor, radius: CGFloat) -> SCNNode {
+        let g = SCNSphere(radius: radius)
+        let m = SCNMaterial()
+        m.lightingModel = .constant
+        m.diffuse.contents = color
+        m.writesToDepthBuffer = false
+        g.materials = [m]
+        let n = SCNNode(geometry: g)
+        n.renderingOrder = 50
+        n.castsShadow = false
+        scene.rootNode.addChildNode(n)
+        return n
+    }
+
+    private func updateDebug(_ sim: GameSimulation) {
+        guard debugVisuals, let player = sim.player else { return }
+        if debugNodes == nil {
+            let reach = SCNNode()
+            let m = SCNMaterial()
+            m.lightingModel = .constant
+            m.diffuse.contents = UIColor.systemYellow.withAlphaComponent(0.6)
+            for sx in [-1.0, 1.0] {
+                let bar = SCNBox(width: 0.008, height: 0.7, length: 0.008, chamferRadius: 0)
+                bar.materials = [m]
+                let n = SCNNode(geometry: bar)
+                n.name = sx < 0 ? "L" : "R"
+                reach.addChildNode(n)
+            }
+            scene.rootNode.addChildNode(reach)
+            debugNodes = (debugMarker(.magenta, radius: 0.025), debugMarker(.systemYellow, radius: 0.015), reach)
+        }
+        guard let nodes = debugNodes else { return }
+        let d = player.diagnostics
+        if let ic = d.interceptPoint {
+            nodes.intercept.isHidden = false
+            nodes.intercept.simdPosition = ic.simd
+            nodes.intercept.opacity = d.reachable ? 1 : 0.35
+        } else {
+            nodes.intercept.isHidden = true
+        }
+        nodes.target.simdPosition = d.targetPosition.simd
+        let r = Float(player.settings.assist.lateralReach)
+        let h = player.settings.assist.heightReach
+        for n in nodes.reach.childNodes {
+            n.simdPosition = SIMD3<Float>(n.name == "L" ? -r : r, Float(h.lowerBound + h.upperBound) / 2, 1.55)
+            n.scale = SCNVector3(1, Float(h.upperBound - h.lowerBound) / 0.7, 1)
+        }
+    }
+
     func update(sim: GameSimulation, frameDt: Double) {
+        updateDebug(sim)
         let world = sim.world
         nearPaddle.apply(sim.nearDriver.paddle)
         playerPaddleX = Float(sim.nearDriver.paddle.position.x)

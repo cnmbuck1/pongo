@@ -71,6 +71,53 @@ public enum AssistLevel: String, Codable, CaseIterable {
     public var reactionDelay: Double {
         switch self { case .beginner: return 0.06; case .standard: return 0.12; case .expert: return 0.18 }
     }
+    // MARK: Build 3 auto contact
+
+    /// Shot timing windows for buffered shots.
+    public var shotTiming: ShotTimingWindows {
+        switch self {
+        case .beginner: return ShotTimingWindows(perfect: 0.35, good: 0.75, lock: 0.09)
+        case .standard: return ShotTimingWindows(perfect: 0.20, good: 0.45, lock: 0.10)
+        case .expert: return ShotTimingWindows(perfect: 0.11, good: 0.28, lock: 0.11)
+        }
+    }
+    /// 0...1 how strongly imperfect timing degrades a shot.
+    public var timingPenalty: Double {
+        switch self { case .beginner: return 0.3; case .standard: return 0.7; case .expert: return 1.0 }
+    }
+    /// Blade-angle assistance multiplier for the default return (no gesture).
+    public var defaultReturnQuality: Double {
+        switch self { case .beginner: return 1.0; case .standard: return 0.9; case .expert: return 0.75 }
+    }
+    /// How far (m) either side of the centre line the paddle can intercept.
+    public var lateralReach: Double {
+        switch self { case .beginner: return 1.2; case .standard: return 1.08; case .expert: return 1.0 }
+    }
+    /// Heights (m) between which the paddle can intercept.
+    public var heightReach: ClosedRange<Double> {
+        switch self {
+        case .beginner: return 0.78...1.55
+        case .standard: return 0.80...1.48
+        case .expert: return 0.82...1.42
+        }
+    }
+    /// Largest blade-angle error (rad) left after assistance, for a perfect
+    /// shot; imperfect timing and the default return allow more.
+    public var maxAimError: Double {
+        switch self { case .beginner: return 0.012; case .standard: return 0.03; case .expert: return 0.06 }
+    }
+    /// Multiplies the residual blade error of the default return (no gesture).
+    public var defaultReturnLooseness: Double {
+        switch self { case .beginner: return 1.0; case .standard: return 2.2; case .expert: return 2.6 }
+    }
+    /// When on, a selected stroke that could not land (too hard for this
+    /// ball) is eased off before contact, the way a coach would temper it.
+    public var strokeSafety: Bool { self != .expert }
+    /// Scales the spin a gesture asks for (Beginner keeps spin simple).
+    public var spinScale: Double {
+        switch self { case .beginner: return 0.75; case .standard: return 1.0; case .expert: return 1.15 }
+    }
+
     /// Stroke timing windows (s), measured from the ideal swipe moment.
     public var timing: TimingWindows {
         switch self {
@@ -138,9 +185,9 @@ public struct StrokeMapping: Codable, Equatable {
 
 /// How touches drive the paddle.
 public enum ControlScheme: String, Codable, CaseIterable {
-    /// Build 2 default: the paddle positions itself on the predicted ball
-    /// path (with speed, reach and reaction limits); the player only swipes
-    /// to strike, anywhere on the screen.
+    /// Default: the paddle positions itself on the predicted ball path and
+    /// strikes every reachable ball by itself; a swipe made while the ball
+    /// is on its way selects the shot (topspin, backspin, placement...).
     case autoTrack
     /// One finger does everything: the paddle follows the finger and the
     /// finger's swipe speed/direction becomes the stroke.
@@ -167,6 +214,24 @@ public struct ControlSettings: Codable, Equatable {
     public var touchOffset: Double = 0.09
     /// Multiplies swipe-to-paddle speed.
     public var swipeSensitivity: Double = 1.0
+    /// Gesture → shot tuning (auto paddle).
+    public var shots = ShotTuning()
 
     public init() {}
+
+    enum CodingKeys: String, CodingKey {
+        case scheme, mapping, assist, touchOffset, swipeSensitivity, shots
+    }
+
+    /// Tolerates missing keys so adding a setting never resets the others.
+    public init(from decoder: Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        scheme = (try? c.decodeIfPresent(ControlScheme.self, forKey: .scheme)) ?? scheme
+        mapping = (try? c.decodeIfPresent(StrokeMapping.self, forKey: .mapping)) ?? mapping
+        assist = (try? c.decodeIfPresent(AssistLevel.self, forKey: .assist)) ?? assist
+        touchOffset = (try? c.decodeIfPresent(Double.self, forKey: .touchOffset)) ?? touchOffset
+        swipeSensitivity = (try? c.decodeIfPresent(Double.self, forKey: .swipeSensitivity)) ?? swipeSensitivity
+        shots = (try? c.decodeIfPresent(ShotTuning.self, forKey: .shots)) ?? shots
+    }
 }

@@ -113,7 +113,7 @@ final class SettingsViewController: UIViewController {
                   selected: ControlScheme.allCases.firstIndex(of: settings.controls.scheme) ?? 0) { [weak self] i in
             self?.settings.controls.scheme = ControlScheme.allCases[i]
         }
-        note("Auto paddle: the paddle moves to the ball by itself; swipe anywhere to strike. Up for topspin, down for backspin, sideways to place the ball and add sidespin, faster for power. Finger paddle: the paddle follows your finger and your swipe is the stroke. Drag + flick: drag slowly to position, flick to strike.")
+        note("Auto paddle: the paddle moves to the ball and hits it for you. Swipe any time while the ball is coming to pick the shot: up for topspin (fast for power), down for backspin, left or right to place it, a curved swipe for sidespin. No swipe plays a safe return. Finger paddle: the paddle follows your finger and your swipe is the stroke. Drag + flick: drag slowly to position, flick to strike.")
         slider("Touch offset (finger paddle schemes)", Float(settings.controls.touchOffset), 0...0.25) { [weak self] v in
             self?.settings.controls.touchOffset = Double(v)
         }

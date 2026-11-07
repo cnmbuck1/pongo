@@ -78,6 +78,10 @@ jobs:
           xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo -PongoTraining
           sleep 7
           xcrun simctl io "$UDID" screenshot screenshots/6-training.png
+          xcrun simctl terminate "$UDID" com.cnmbuckstudios.pongo
+          xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo -PongoTraining -PongoDebug
+          sleep 9.5
+          xcrun simctl io "$UDID" screenshot screenshots/7-debug.png
           for f in screenshots/*.png; do
             sips -Z 640 -s format jpeg -s formatOptions 60 "$f" --out "${f%.png}.jpg" >/dev/null
             echo "=== BEGIN ${f%.png}.jpg"; base64 -i "${f%.png}.jpg" | tr -d '\n'; echo; echo "=== END"

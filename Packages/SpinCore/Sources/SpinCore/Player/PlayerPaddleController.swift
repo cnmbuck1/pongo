@@ -51,7 +51,19 @@ public final class PlayerPaddleController: PaddleDriver {
     }
     private var autoPlan: AutoPlan?
     private var motion: PaddleMotion
-    private var swipeArmed = true
+    private var touchPath: [GestureInterpreter.Sample] = []
+    private var incomingHitTime: Double = -100
+    private var contactDone = false
+    /// The shot selected for the current incoming ball.
+    public private(set) var buffer = ShotBuffer()
+    /// Live diagnostics for the developer overlay.
+    public private(set) var diagnostics = PaddleDiagnostics()
+    /// Every shot executed at contact (tests / stats).
+    public private(set) var executedShots: [ShotCommand] = []
+    /// Optional gameplay event log (developer diagnostics).
+    public var eventLog: ((String) -> Void)?
+    private var queuedServeIsDefault = false
+    private var strokeScale = 1.0
     /// Lead (s) between the ideal swipe and contact.
     public static let idealLead = 0.10
     static let autoSwingDuration = 0.085
@@ -94,6 +106,10 @@ public final class PlayerPaddleController: PaddleDriver {
         serveLock = nil
         autoPlan = nil
         strokeTiming = nil
+        buffer.clear()
+        contactDone = false
+        incomingHitTime = -100
+        queuedServeIsDefault = false
     }
 
     // MARK: Swipe mapping
@@ -127,6 +143,14 @@ public final class PlayerPaddleController: PaddleDriver {
             // Serving uses the shared serve logic from a fixed stance.
             padU = 0.5; padV = 0.25
             autoPlan = nil
+            // Beginner: a tap alone serves (a gentle default serve), and a
+            // swipe still picks a different one.
+            if settings.assist == .beginner, !ctx.ballHeld, queuedServe == nil, activeSwing == nil,
+               ctx.ball.velocity.y > 0 {
+                queuedServe = Vec3(0, -0.3, side.hitDirection * 5.3)
+                queuedServeIsDefault = true
+                strokeTiming = .good
+            }
         }
         let out = updateManual(ctx)
         motion.velocity = (position - motion.position) / max(ctx.dt, 1e-6)
@@ -143,7 +167,7 @@ public final class PlayerPaddleController: PaddleDriver {
         if !serving || ctx.ballHeld && queuedServe == nil {
             serveLock = nil
         }
-        if ctx.ballHeld { queuedServe = nil }
+        if ctx.ballHeld { queuedServe = nil; queuedServeIsDefault = false }
         let frozen = serveLock != nil || (settings.scheme == .dragAndFlick && now < flickFreezeUntil)
         let auto = settings.scheme == .autoTrack
 
@@ -185,10 +209,11 @@ public final class PlayerPaddleController: PaddleDriver {
                 if serving {
                     // One-swipe serve: toss now, strike when the ball drops.
                     if ctx.ballHeld { requestToss = true }
-                    if queuedServe == nil {
+                    if queuedServe == nil || queuedServeIsDefault {
                         strokeTiming = serveTiming(ctx)
                     }
-                    if queuedServe == nil || stroke.length > queuedServe!.length {
+                    if queuedServe == nil || queuedServeIsDefault || stroke.length > queuedServe!.length {
+                        queuedServeIsDefault = false
                         queuedServe = stroke
                         lastSwipeLateral = clamp(fv.0 / max(speed, 1e-6), -1, 1)
                     }
@@ -213,6 +238,7 @@ public final class PlayerPaddleController: PaddleDriver {
             activeSwing = q
             swingUntil = now + max(window, 0.15)
             queuedServe = nil
+            queuedServeIsDefault = false
         }
         if now > swingUntil { activeSwing = nil }
 
@@ -291,13 +317,15 @@ public final class PlayerPaddleController: PaddleDriver {
         return serveWindows.classify(tRelease - Self.idealLead) ?? .good
     }
 
-    // MARK: Auto paddle
+    // MARK: Auto paddle (Build 3)
 
-    /// Build 2 control: the paddle tracks the predicted interception by
-    /// itself (speed, acceleration, reach and reaction limited) and the
-    /// player's swipe decides when and how to strike. A swipe within the
-    /// timing window schedules a stroke that swings through the contact
-    /// point; without a stroke the blade does not touch the ball.
+    /// Build 3 control: the paddle intercepts every reachable ball by itself
+    /// and strikes it at the real contact. A swipe made while the ball is on
+    /// its way only selects the shot (it is buffered, the latest one wins,
+    /// and it locks just before contact). With no swipe the paddle plays a
+    /// default return. Timing changes shot quality, never whether contact
+    /// happens; difficulty changes reach, tracking, timing penalties and the
+    /// quality of the default return.
     private func updateAuto(_ ctx: DriverContext) -> DriverOutput {
         lastCtx = ctx
         tick += 1
@@ -308,59 +336,87 @@ public final class PlayerPaddleController: PaddleDriver {
         serveLock = nil
         activeSwing = nil
 
-        // 1. Input: only the swipe matters.
+        let incoming = ctx.ballIncoming(to: side)
+        if incoming && ctx.lastHitTime != incomingHitTime {
+            // A new incoming ball: fresh buffer, fresh contact.
+            incomingHitTime = ctx.lastHitTime
+            buffer.clear()
+            contactDone = false
+            autoPlan = nil
+            intercept = nil
+            strokeScale = 1
+            diagnostics.lastMiss = nil
+            log("incoming ball")
+        }
+
+        // 1. Input: completed gestures select the shot.
         pending.sort { $0.time < $1.time }
         while let e = pending.first, e.time <= now + 1e-9 {
             pending.removeFirst()
             switch e.phase {
             case .began:
                 touching = true
-                swipeArmed = true
-                samples = [(e.time, e.screenX, e.screenY)]
+                touchPath = [GestureInterpreter.Sample(t: e.time, x: e.screenX, y: e.screenY)]
             case .moved:
-                samples.append((e.time, e.screenX, e.screenY))
+                touchPath.append(GestureInterpreter.Sample(t: e.time, x: e.screenX, y: e.screenY))
             case .ended, .cancelled:
-                samples.append((e.time, e.screenX, e.screenY))
+                touchPath.append(GestureInterpreter.Sample(t: e.time, x: e.screenX, y: e.screenY))
                 touching = false
+                if e.phase == .ended { completeGesture(ctx, incoming: incoming) }
+                touchPath = []
             }
         }
-        samples.removeAll { $0.t < now - 0.2 }
 
-        // 2. Prediction (after the reaction delay).
-        let incoming = ctx.ballIncoming(to: side)
-        if incoming && now - ctx.lastHitTime >= assist.reactionDelay {
+        // 2. Prediction (after the reaction delay) and reachability.
+        if incoming && !contactDone && now - ctx.lastHitTime >= assist.reactionDelay {
             if tick % 3 == 0 || intercept == nil || interceptComputedAt < ctx.lastHitTime {
-                intercept = InterceptPlanner.intercept(ball: ctx.ball, side: side, config: config,
+                let fresh = InterceptPlanner.intercept(ball: ctx.ball, side: side, config: config,
                                                        preferredDepth: reach.defaultDepth - 0.05,
                                                        alreadyBounced: ctx.bouncedSinceHit)
-                    ?? (ctx.bouncedSinceHit ? intercept : nil)
+                intercept = fresh ?? (ctx.bouncedSinceHit ? intercept : nil)
                 interceptComputedAt = now
             }
         } else if !incoming {
             intercept = nil
         }
         let backOff = Vec3(0, 0, side.hitDirection) * (config.ball.radius + config.paddleHalfThickness)
-
-        // 3. Swipe → stroke.
-        if let fv = fingerVelocity(now: now) {
-            let speed = (fv.0 * fv.0 + fv.1 * fv.1).squareRoot()
-            if speed < Self.swingThreshold * 0.5 { swipeArmed = true }
-            if speed > Self.swingThreshold && swipeArmed {
-                swipeArmed = false
-                if incoming, autoPlan == nil, let ic = intercept, ic.timeFromNow > 0.03,
-                   let timing = assist.timing.classify(ic.timeFromNow - Self.idealLead) {
-                    let stroke = strokeVelocity(fingerVX: fv.0, fingerVY: fv.1) * timing.power
-                    lastSwipeLateral = clamp(fv.0 / max(speed, 1e-6), -1, 1)
-                    strokeTiming = timing
+        var reachable = false
+        if let ic = intercept, !contactDone {
+            reachable = isReachable(ic.point)
+            if reachable {
+                if var p = autoPlan {
+                    if p.contactTime - now > Self.autoSwingDuration {
+                        // Follow the latest prediction until the swing starts.
+                        p.contactTime = now + ic.timeFromNow
+                        p.contactPoint = ic.point - backOff
+                        autoPlan = p
+                    }
+                } else {
                     autoPlan = AutoPlan(contactTime: now + ic.timeFromNow, contactPoint: ic.point - backOff,
-                                        stroke: stroke)
+                                        stroke: .zero)
+                    log(String(format: "intercept t=%.2f x=%.2f y=%.2f", ic.timeFromNow, ic.point.x, ic.point.y))
                 }
+            } else {
+                if autoPlan != nil { log("intercept now out of reach") }
+                autoPlan = nil
+                diagnostics.lastMiss = .outOfReach
             }
-        } else if !touching {
-            swipeArmed = true
         }
 
-        // 4. Target pose.
+        // 3. Lock the shot just before contact; build the stroke.
+        if var p = autoPlan, !contactDone {
+            let remaining = p.contactTime - now
+            if remaining <= assist.shotTiming.lock && !buffer.locked {
+                buffer.lock()
+                strokeScale = 1
+                if assist.strokeSafety, let ic = intercept { strokeScale = safeStrokeScale(ball: ic.ball, config: config) }
+                log("shot locked: \(buffer.command?.label ?? "default")" + (strokeScale < 1 ? String(format: " eased x%.2f", strokeScale) : ""))
+            }
+            p.stroke = currentStroke()
+            autoPlan = p
+        }
+
+        // 4. Target pose and motion.
         let home = Vec3(0, 0.96, side.zSign * reach.defaultDepth)
         var target = home
         var feedForward = Vec3.zero
@@ -368,31 +424,32 @@ public final class PlayerPaddleController: PaddleDriver {
         var maxAccel = assist.trackAcceleration
         var gain = 9.0
         var striking = false
-        if var p = autoPlan {
-            var remaining = p.contactTime - now
-            if remaining > Self.autoSwingDuration, let ic = intercept {
-                // Keep the contact point on the latest prediction.
-                p.contactTime = now + ic.timeFromNow
-                p.contactPoint = ic.point - backOff
-                autoPlan = p
-                remaining = p.contactTime - now
-            }
+        if let p = autoPlan {
+            let remaining = p.contactTime - now
             if remaining > Self.autoSwingDuration {
                 target = p.contactPoint - p.stroke * Self.autoSwingDuration
             } else if remaining > -0.12 {
+                // Swing through the contact point, then follow through.
                 target = p.contactPoint + p.stroke * (-remaining)
                 feedForward = p.stroke
                 maxSpeed = max(maxSpeed, p.stroke.length * 1.2)
                 maxAccel = 110
                 gain = 14
-                striking = true
+                striking = !contactDone
             } else {
+                if !contactDone {
+                    diagnostics.lastMiss = .lateContact
+                    log("missed contact (paddle late)")
+                    buffer.clear()
+                    // This ball is gone: no second attempt, no phantom strike.
+                    contactDone = true
+                }
                 autoPlan = nil
             }
-        } else if let ic = intercept {
-            // Ready position: a little behind and below the contact point.
-            target = ic.point - backOff + Vec3(0, -0.03, side.zSign * 0.22)
-        } else if !incoming {
+        } else if let ic = intercept, !contactDone {
+            // Out of reach: still lean toward the ball, inside the reach limits.
+            target = ic.point - backOff + Vec3(0, 0, side.zSign * 0.22)
+        } else if !incoming || contactDone {
             // Recover toward the middle while the ball is away.
             target = Vec3(position.x * 0.6, 0.96, side.zSign * reach.defaultDepth)
             maxSpeed *= 0.6
@@ -403,16 +460,146 @@ public final class PlayerPaddleController: PaddleDriver {
         position = motion.position
         depth = abs(position.z)
 
-        let stroke = autoPlan?.stroke
-        // No stroke, no contact: an unswung blade lets the ball go by.
+        // The blade can only touch the ball during the planned stroke, once.
         let radius = striking ? config.paddleRadius + assist.extraHitRadius : 0
-        paddle = PaddleState(position: position, velocity: motion.velocity,
-                             normal: naturalNormal(swing: stroke, at: position), hitRadius: radius)
+        // During the stroke the blade moves along the planned swing (the
+        // motion above follows it); contact uses that swing velocity so the
+        // selected shot, not leftover tracking speed, decides the return.
+        let velocity = striking ? (autoPlan?.stroke ?? motion.velocity) : motion.velocity
+        paddle = PaddleState(position: position, velocity: velocity,
+                             normal: autoNormal(stroke: autoPlan?.stroke ?? currentStroke(), at: position),
+                             hitRadius: radius)
+
+        diagnostics.interceptPoint = intercept?.point
+        diagnostics.targetPosition = target
+        diagnostics.actualPosition = position
+        diagnostics.contactEligible = striking
+        diagnostics.reachable = reachable
+        diagnostics.bufferedShot = buffer.command
+        diagnostics.bufferedTiming = buffer.timing
+        diagnostics.timeToContact = autoPlan.map { $0.contactTime - now }
         return DriverOutput(paddle: paddle, requestToss: false)
+    }
+
+    private func isReachable(_ p: Vec3) -> Bool {
+        let a = settings.assist
+        return abs(p.x) <= a.lateralReach && a.heightReach.contains(p.y)
+    }
+
+    /// The selected (or default) shot as a paddle stroke, with timing applied.
+    private func currentStroke() -> Vec3 {
+        let cmd = buffer.command ?? settings.shots.defaultShot
+        var stroke = cmd.stroke(for: side)
+        stroke = Vec3(stroke.x * strokeScale, stroke.y * max(strokeScale, 0.6), stroke.z * strokeScale)
+        if buffer.command != nil, let t = buffer.timing {
+            stroke = stroke * (1 - (1 - t.power) * settings.assist.timingPenalty)
+        }
+        return stroke
+    }
+
+    /// Eases the stroke off until it can land (assisted levels only).
+    private func safeStrokeScale(ball: BallState, config: PhysicsConfig) -> Double {
+        let saved = strokeScale
+        defer { strokeScale = saved }
+        var best = (scale: 1.0, score: Double.infinity)
+        for scale in [1.0, 0.85, 0.7, 0.55, 0.42] {
+            strokeScale = scale
+            let stroke = currentStroke()
+            let goal = autoGoal(paddleX: position.x, forward: abs(stroke.z), config: config)
+            let sol = ShotSolver.solve(incoming: ball, paddleVelocity: stroke, goal: goal, config: config)
+            if sol.evaluation.landsLegally && sol.evaluation.score < 0.45 { return scale }
+            if sol.evaluation.score < best.score { best = (scale, sol.evaluation.score) }
+        }
+        return best.scale
+    }
+
+    private func autoGoal(paddleX: Double, forward: Double, config: PhysicsConfig) -> ShotSolver.Goal {
+        let depthFromNet = forward < 2.5 ? 0.62 : clamp(0.62 + (forward - 2.5) * 0.12, 0.62, 1.05)
+        let target = Vec3(autoAimX(at: Vec3(paddleX, 0, 0)), config.table.surfaceHeight, side.opponent.zSign * depthFromNet)
+        return ShotSolver.Goal(hitter: side, isServe: false, target: target)
+    }
+
+    private func completeGesture(_ ctx: DriverContext, incoming: Bool) {
+        guard let cmd = GestureInterpreter.interpret(touchPath, tuning: settings.shots,
+                                                     spinScale: settings.assist.spinScale) else { return }
+        // Shots are taken from the opponent's hit until our contact.
+        guard incoming, !contactDone else {
+            log("gesture ignored (\(cmd.label)): ball not incoming")
+            return
+        }
+        let ttc = autoPlan.map { $0.contactTime - ctx.time } ?? intercept?.timeFromNow
+        let timing = ttc.map { settings.assist.shotTiming.classify(timeToContact: $0) } ?? .early
+        if buffer.offer(cmd, timing: timing) {
+            log("shot buffered: \(cmd.label) \(buffer.timing?.rawValue ?? "")")
+        } else {
+            log("gesture ignored (\(cmd.label)): shot locked")
+        }
+    }
+
+    /// Blade angle while tracking: closed for topspin, open for backspin,
+    /// turned toward the selected placement.
+    private func autoNormal(stroke: Vec3, at position: Vec3) -> Vec3 {
+        let pitch = clamp(0.12 - stroke.y * 0.11, -0.55, 0.75)
+        let yaw = atan((autoAimX(at: position) - position.x) / 2.4)
+        return ShotSolver.faceNormal(for: side, pitch: pitch, yaw: yaw)
+    }
+
+    private func autoAimX(at position: Vec3) -> Double {
+        let cmd = buffer.command ?? settings.shots.defaultShot
+        if cmd.placement == 0 { return clamp(-position.x * 0.25, -0.3, 0.3) }
+        // Placement is as the player sees it: screen right is world +x for the
+        // near side, and mirrored for the far side.
+        return clamp(cmd.placement * 0.52 * (side == .near ? 1 : -1), -0.6, 0.6)
+    }
+
+    private func autoContactNormal(incoming: BallState, paddle: PaddleState, ctx: DriverContext) -> Vec3 {
+        let config = ctx.config
+        let assist = settings.assist
+        let chosen = buffer.command
+        let cmd = chosen ?? settings.shots.defaultShot
+        let timing = chosen != nil ? buffer.timing : nil
+        let goal = autoGoal(paddleX: paddle.position.x, forward: abs(paddle.velocity.z), config: config)
+        let offset = incoming.position - paddle.position
+        let raw = instinctiveNormal(incoming: incoming, paddleVelocity: paddle.velocity, goal: goal, config: config,
+                                    offset: offset)
+        let solved = ShotSolver.solve(incoming: incoming, paddleVelocity: paddle.velocity, goal: goal, config: config,
+                                      contactOffset: offset)
+        let penalty = assist.timingPenalty
+        let accuracy = timing.map { 1 - (1 - $0.accuracy) * penalty } ?? 1
+        let quality = chosen == nil ? assist.defaultReturnQuality : 1
+        let hardness = clamp((incoming.velocity.length - 10) / 10, 0, 0.25)
+        // The blade lands between the instinctive angle (spin ignored) and the
+        // solved one; the leftover error is capped per level so a well-chosen,
+        // well-timed shot is reliable and a poor one drifts.
+        let a = clamp(assist.aimAssist * accuracy * quality * (1 - hardness), 0, 1)
+        let (rp, ry) = ShotSolver.angles(of: raw, side: side)
+        let (sp, sy) = ShotSolver.angles(of: solved.normal, side: side)
+        let cap = assist.maxAimError * (2 - accuracy) * (chosen == nil ? assist.defaultReturnLooseness : 1)
+        let pitch = sp + clamp((rp - sp) * (1 - a), -cap, cap)
+        var yaw = sy + clamp((ry - sy) * (1 - a), -cap, cap)
+        if let t = timing { yaw += t.yawError * penalty }
+        let n = ShotSolver.faceNormal(for: side, pitch: pitch, yaw: yaw)
+        // One authoritative contact: the shot is executed and cleared.
+        contactDone = true
+        strokeTiming = timing
+        diagnostics.lastShot = cmd
+        diagnostics.lastTiming = timing
+        diagnostics.lastMiss = nil
+        executedShots.append(cmd)
+        log("contact: \(cmd.label) \(timing?.rawValue ?? "default")")
+        buffer.clear()
+        return n
+    }
+
+    private func log(_ message: String) {
+        guard let hook = eventLog else { return }
+        hook(String(format: "[%.3f] ", lastCtx?.time ?? 0) + message)
     }
 
     private func autoClamp(_ p: Vec3, swing: Bool = false) -> Vec3 {
         var r = reach
+        // The auto paddle may reach in over the table for short balls.
+        r.depthRange = 0.32...r.depthRange.upperBound
         if swing {
             r.yRange = (r.yRange.lowerBound - 0.08)...(r.yRange.upperBound + 0.2)
             r.depthRange = (r.depthRange.lowerBound - 0.1)...(r.depthRange.upperBound + 0.2)
@@ -425,7 +612,7 @@ public final class PlayerPaddleController: PaddleDriver {
 
     /// Where the natural stroke aims laterally (x on the opponent's half).
     private func aimX(at position: Vec3) -> Double {
-        let swinging = activeSwing != nil || autoPlan != nil
+        let swinging = activeSwing != nil
         return clamp(-position.x * 0.3 + lastSwipeLateral * settings.mapping.lateralPlacement * (swinging ? 1 : 0.3),
                      -0.6, 0.6)
     }
@@ -461,6 +648,9 @@ public final class PlayerPaddleController: PaddleDriver {
     }
 
     public func contactNormal(incoming: BallState, paddle: PaddleState, ctx: DriverContext) -> Vec3 {
+        if settings.scheme == .autoTrack && ctx.refereePhase != .awaitingServe {
+            return autoContactNormal(incoming: incoming, paddle: paddle, ctx: ctx)
+        }
         let config = ctx.config
         let isServe = ctx.refereePhase == .awaitingServe
         let forward = abs(paddle.velocity.z)

@@ -19,20 +19,20 @@ enum TrainingModule: Int, CaseIterable {
     /// Short animated prompt shown while the ball is coming.
     var prompt: String {
         switch self {
-        case .basicReturns: return "SWIPE UP TO HIT"
-        case .topspin: return "SWIPE UP FAST"
+        case .basicReturns: return "SWIPE TO PICK A SHOT"
+        case .topspin: return "SWIPE UP"
         case .backspin: return "SWIPE DOWN"
-        case .sidespin: return "SWIPE SIDEWAYS"
-        case .placement: return "SWIPE TOWARD THE TARGET"
+        case .sidespin: return "CURVE YOUR SWIPE"
+        case .placement: return "SWIPE LEFT OR RIGHT"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .basicReturns: return "Learn shot timing and paddle contact."
+        case .basicReturns: return "The paddle meets the ball for you. Swipe to choose the shot."
         case .topspin: return "Brush up through the ball."
         case .backspin: return "Brush down under the ball."
-        case .sidespin: return "Brush across the ball to curve it."
+        case .sidespin: return "Swipe in an arc to brush across the ball and curve it."
         case .placement: return "Land the ball in the target zone."
         }
     }
