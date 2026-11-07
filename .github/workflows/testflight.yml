@@ -1,0 +1,87 @@
+name: TestFlight
+
+# Builds a signed release of Pongo and uploads it to TestFlight.
+# Runs on every push to main, or by hand from the Actions tab.
+# Needs four repository secrets (see README, "TestFlight"):
+#   APPLE_TEAM_ID, APP_STORE_CONNECT_KEY_ID,
+#   APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_P8
+# Optional repository variable: BUNDLE_ID (default com.cnmbuck.pongo).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Build and upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+      BUNDLE_ID: ${{ vars.BUNDLE_ID || 'com.cnmbuck.pongo' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - name: Check Apple credentials are configured
+        id: creds
+        run: |
+          if [ -z "$TEAM_ID" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_KEY_P8" ]; then
+            echo "::warning::TestFlight secrets are not set yet, so no upload was attempted. See README, section TestFlight."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.creds.outputs.ready == 'true'
+
+      - name: Install App Store Connect API key
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Archive (signed via Xcode cloud signing)
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Pongo.xcodeproj \
+            -scheme Pongo \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Pongo.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+
+      - name: Export and upload to App Store Connect
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          sed "s/TEAM_ID_PLACEHOLDER/$TEAM_ID/" Scripts/testflight/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Pongo.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Uploaded Pongo build $BUILD_NUMBER. It appears in TestFlight after Apple finishes processing (usually 5 to 30 minutes)."
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
