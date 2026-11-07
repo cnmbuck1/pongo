@@ -31,7 +31,9 @@ enum ArenaBuilder {
         floor.reflectivity = 0.08
         floor.reflectionFalloffEnd = 2.5
         floor.reflectionResolutionScaleFactor = 0.5
-        let m = Materials.pbr(UIColor(red: 0.03, green: 0.04, blue: 0.07, alpha: 1), metalness: 0.1, roughness: 0.85)
+        let m = SCNMaterial()
+        m.lightingModel = .lambert
+        m.diffuse.contents = UIColor(red: 0.025, green: 0.032, blue: 0.06, alpha: 1)
         floor.materials = [m]
         let n = SCNNode(geometry: floor)
         n.name = "floor"
@@ -168,8 +170,8 @@ enum ArenaBuilder {
         key.type = .spot
         key.intensity = 380
         key.color = UIColor(white: 0.96, alpha: 1)
-        key.spotInnerAngle = 50
-        key.spotOuterAngle = 75
+        key.spotInnerAngle = 28
+        key.spotOuterAngle = 52
         key.castsShadow = true
         key.shadowMode = .deferred
         key.shadowRadius = 6

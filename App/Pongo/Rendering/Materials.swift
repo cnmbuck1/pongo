@@ -32,9 +32,11 @@ enum Materials {
     }
 
     static let tableTop: SCNMaterial = {
-        // Matte, like a real table top: a glossy surface mirrored the key
-        // light straight at the camera.
-        let m = pbr(Palette.graphite, metalness: 0.0, roughness: 0.75)
+        // Unlit, with the shading baked into the texture: the table always
+        // reads as a dark graphite surface whatever the arena lighting does
+        // (lit materials washed out to pale grey on device).
+        let m = SCNMaterial()
+        m.lightingModel = .constant
         m.diffuse.contents = tableTexture()
         return m
     }()
@@ -56,17 +58,22 @@ enum Materials {
 
     /// Subtle micro-grid on the playing surface.
     static func tableTexture() -> UIImage {
-        let size = CGSize(width: 256, height: 256)
+        let size = CGSize(width: 512, height: 512)
         return UIGraphicsImageRenderer(size: size).image { ctx in
-            Palette.graphite.setFill()
-            ctx.fill(CGRect(origin: .zero, size: size))
-            UIColor(red: 0.08, green: 0.12, blue: 0.22, alpha: 0.6).setStroke()
+            let cg = ctx.cgContext
+            // Deep blue-graphite with a soft pool of light in the middle.
+            let colors = [UIColor(red: 0.075, green: 0.115, blue: 0.20, alpha: 1).cgColor,
+                          UIColor(red: 0.035, green: 0.055, blue: 0.105, alpha: 1).cgColor] as CFArray
+            let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1])!
+            cg.drawRadialGradient(grad, startCenter: CGPoint(x: 256, y: 256), startRadius: 0,
+                                  endCenter: CGPoint(x: 256, y: 256), endRadius: 380, options: [.drawsAfterEndLocation])
+            UIColor(red: 0.20, green: 0.45, blue: 0.70, alpha: 0.16).setStroke()
             let path = UIBezierPath()
-            for i in stride(from: 0, through: 256, by: 32) {
-                path.move(to: CGPoint(x: i, y: 0)); path.addLine(to: CGPoint(x: i, y: 256))
-                path.move(to: CGPoint(x: 0, y: i)); path.addLine(to: CGPoint(x: 256, y: i))
+            for i in stride(from: 0, through: 512, by: 32) {
+                path.move(to: CGPoint(x: i, y: 0)); path.addLine(to: CGPoint(x: i, y: 512))
+                path.move(to: CGPoint(x: 0, y: i)); path.addLine(to: CGPoint(x: 512, y: i))
             }
-            path.lineWidth = 0.6
+            path.lineWidth = 1
             path.stroke()
         }
     }

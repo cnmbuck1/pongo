@@ -11,12 +11,13 @@ final class GameViewController: UIViewController {
     private let host: SimulationHost
 
     // HUD
-    private let playerScore = makeLabel("0", size: 40, weight: .heavy)
-    private let opponentScore = makeLabel("0", size: 40, weight: .heavy, color: Palette.violet)
-    private let playerName = makeLabel("YOU", size: 11, weight: .bold, color: Palette.cyan, kern: 2)
-    private let opponentName = makeLabel("CPU", size: 11, weight: .bold, color: Palette.violet, kern: 2)
-    private let gameLabel = makeLabel("GAME 1", size: 12, weight: .bold, color: Palette.textDim, kern: 3)
-    private let gamesLabel = makeLabel("0 – 0", size: 13, weight: .semibold, color: Palette.textDim)
+    // Scoreboard: YOU 01 | GAME 1 | CPU 07, games won in small type.
+    private let playerScore = makeLabel("00", size: 26, weight: .heavy, color: Palette.cyan)
+    private let opponentScore = makeLabel("00", size: 26, weight: .heavy, color: Palette.violet)
+    private let playerName = makeLabel("YOU", size: 12, weight: .bold, color: Palette.cyan, kern: 2)
+    private let opponentName = makeLabel("CPU", size: 12, weight: .bold, color: Palette.violet, kern: 2)
+    private let gameLabel = makeLabel("GAME 1", size: 12, weight: .heavy, color: Palette.white, kern: 3)
+    private let gamesLabel = makeLabel("GAMES 0–0", size: 9, weight: .semibold, color: Palette.textDim, kern: 1)
     private let playerServe = UIView()
     private let opponentServe = UIView()
     private let callout = makeLabel("", size: 30, weight: .heavy, kern: 4)
@@ -121,23 +122,19 @@ final class GameViewController: UIViewController {
         playerServe.backgroundColor = Palette.cyan
         opponentServe.backgroundColor = Palette.violet
 
-        func column(_ name: UILabel, _ score: UILabel, _ dot: UIView) -> UIStackView {
-            let top = UIStackView(arrangedSubviews: [dot, name])
-            top.axis = .horizontal
-            top.spacing = 6
-            top.alignment = .center
-            let s = UIStackView(arrangedSubviews: [top, score])
-            s.axis = .vertical
+        func row(_ views: [UIView]) -> UIStackView {
+            let s = UIStackView(arrangedSubviews: views)
+            s.axis = .horizontal
+            s.spacing = 6
             s.alignment = .center
-            s.spacing = 0
             return s
         }
-        let left = column(playerName, playerScore, playerServe)
-        let right = column(opponentName, opponentScore, opponentServe)
+        let left = row([playerServe, playerName, playerScore])
+        let right = row([opponentScore, opponentName, opponentServe])
         let middle = UIStackView(arrangedSubviews: [gameLabel, gamesLabel])
         middle.axis = .vertical
         middle.alignment = .center
-        middle.spacing = 4
+        middle.spacing = 1
         let bar = UIStackView(arrangedSubviews: [left, middle, right])
         bar.axis = .horizontal
         bar.distribution = .equalCentering
@@ -146,7 +143,7 @@ final class GameViewController: UIViewController {
 
         let barBG = UIView()
         barBG.translatesAutoresizingMaskIntoConstraints = false
-        barBG.backgroundColor = UIColor(red: 0.02, green: 0.04, blue: 0.10, alpha: 0.55)
+        barBG.backgroundColor = UIColor(red: 0.02, green: 0.04, blue: 0.10, alpha: 0.82)
         barBG.layer.cornerRadius = 18
         barBG.layer.borderWidth = 1
         barBG.layer.borderColor = Palette.cyan.withAlphaComponent(0.25).cgColor
@@ -192,10 +189,10 @@ final class GameViewController: UIViewController {
 
         let g = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
-            bar.topAnchor.constraint(equalTo: g.topAnchor, constant: 14),
-            bar.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 34),
-            bar.trailingAnchor.constraint(equalTo: g.trailingAnchor, constant: -84),
-            barBG.topAnchor.constraint(equalTo: bar.topAnchor, constant: -8),
+            bar.topAnchor.constraint(equalTo: g.topAnchor, constant: 10),
+            bar.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 30),
+            bar.trailingAnchor.constraint(equalTo: g.trailingAnchor, constant: -80),
+            barBG.topAnchor.constraint(equalTo: bar.topAnchor, constant: -6),
             barBG.bottomAnchor.constraint(equalTo: bar.bottomAnchor, constant: 6),
             barBG.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: -18),
             barBG.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: 18),
@@ -222,10 +219,10 @@ final class GameViewController: UIViewController {
             (sim.score, sim.server, sim.phase, sim.lastContact, sim.stats.successfulReturns)
         }
         if mode == .match {
-            playerScore.text = "\(snap.points(.near))"
-            opponentScore.text = "\(snap.points(.far))"
+            playerScore.text = String(format: "%02d", snap.points(.near))
+            opponentScore.text = String(format: "%02d", snap.points(.far))
             gameLabel.text = "GAME \(snap.gameNumber)"
-            gamesLabel.text = "\(snap.games(.near)) – \(snap.games(.far))"
+            gamesLabel.text = "GAMES \(snap.games(.near))–\(snap.games(.far))"
             playerServe.alpha = server == .near ? 1 : 0.12
             opponentServe.alpha = server == .far ? 1 : 0.12
         } else {

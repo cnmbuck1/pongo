@@ -96,6 +96,22 @@ final class PhysicsTests: XCTestCase {
         XCTAssertGreaterThan(flat.velocity.z, back.velocity.z + 0.2)
     }
 
+    func testSideSpinComponentKicksBounceSideways() {
+        // Spin about the travel axis (the tilted part of a sidespin stroke)
+        // makes the ball kick sideways off the table; pure vertical-axis
+        // spin curves the flight instead (see testSidespinCurvesLaterally).
+        var b = BallState(position: Vec3(0, table.surfaceHeight + config.ball.radius - 0.001, 0.6),
+                          velocity: Vec3(0, -3, 5), spin: Vec3(0, 0, 150))
+        var events: [PhysicsEvent] = []
+        BallPhysics.collideStatic(&b, config: config, time: 0, events: &events)
+        XCTAssertEqual(events.first?.kind, .tableBounce)
+        XCTAssertGreaterThan(abs(b.velocity.x), 0.3)
+        var m = BallState(position: Vec3(0, table.surfaceHeight + config.ball.radius - 0.001, 0.6),
+                          velocity: Vec3(0, -3, 5), spin: Vec3(0, 0, -150))
+        BallPhysics.collideStatic(&m, config: config, time: 0, events: &events)
+        XCTAssertEqual(b.velocity.x, -m.velocity.x, accuracy: 1e-9, "opposite spin, opposite kick")
+    }
+
     func testHeavyBackspinOnSlowBallKicksBackward() {
         let b = bounce(vz: 1.0, vy: -3, spinX: -260)
         XCTAssertLessThan(b.velocity.z, 0, "strong backspin should kick the ball back toward the net")

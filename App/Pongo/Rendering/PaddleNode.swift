@@ -15,21 +15,28 @@ final class PaddleNode: SCNNode {
 
         // Blade: thin disc whose axis is the bladePivot's local +Z.
         let blade = SCNNode(geometry: SCNCylinder(radius: r, height: 0.012))
-        blade.geometry?.materials = [Materials.pbr(UIColor(red: 0.08, green: 0.09, blue: 0.12, alpha: 1),
+        blade.geometry?.materials = [Materials.pbr(UIColor(red: 0.10, green: 0.11, blue: 0.14, alpha: 1),
                                                    metalness: 0.2, roughness: 0.6)]
         blade.eulerAngles.x = .pi / 2
         bladePivot.addChildNode(blade)
 
         // Rubber face (front) tinted with the accent colour.
-        let face = SCNNode(geometry: SCNCylinder(radius: r * 0.96, height: 0.002))
-        face.geometry?.materials = [Materials.pbr(accent.withAlphaComponent(1).mixed(with: .black, 0.55),
-                                                  metalness: 0.0, roughness: 0.75)]
-        face.eulerAngles.x = .pi / 2
-        face.position = SCNVector3(0, 0, 0.0065)
-        bladePivot.addChildNode(face)
+        // Rubber on both sides, tinted with the accent colour and slightly
+        // self-lit so the paddle stays readable against the dark arena.
+        let rubber = Materials.pbr(accent.withAlphaComponent(1).mixed(with: .black, 0.35),
+                                   metalness: 0.0, roughness: 0.75)
+        rubber.emission.contents = accent.withAlphaComponent(1).mixed(with: .black, 0.5)
+        rubber.emission.intensity = 0.35
+        for z: Float in [0.0065, -0.0065] {
+            let face = SCNNode(geometry: SCNCylinder(radius: r * 0.96, height: 0.002))
+            face.geometry?.materials = [rubber]
+            face.eulerAngles.x = .pi / 2
+            face.position = SCNVector3(0, 0, z)
+            bladePivot.addChildNode(face)
+        }
 
         // Glowing rim.
-        let rim = SCNNode(geometry: SCNTorus(ringRadius: r, pipeRadius: 0.0035))
+        let rim = SCNNode(geometry: SCNTorus(ringRadius: r, pipeRadius: 0.006))
         rim.geometry?.materials = [Materials.glow(accent, intensity: 1.1)]
         rim.eulerAngles.x = .pi / 2
         rim.castsShadow = false
