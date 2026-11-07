@@ -48,7 +48,9 @@ final class ScriptedTouchPlayer {
         if sim.phase == .serving && sim.server == .near {
             // One-swipe serve: swipe while holding the ball; the controller
             // tosses and strikes on its own. Retry if the toss is re-held.
-            if world.ballHeld && !touching && t - tossedAt > 0.8 {
+            if world.ballHeld && touching {
+                emit(.ended); touching = false   // lift the finger left down from the rally
+            } else if world.ballHeld && !touching && t - tossedAt > 0.8 {
                 screen = (0.5, 0.25); u = 0.5; v = 0.25
                 touching = true
                 emit(.began)
