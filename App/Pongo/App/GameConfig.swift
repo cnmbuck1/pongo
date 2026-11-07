@@ -45,17 +45,59 @@ enum BallSkin: String, Codable, CaseIterable {
     }
 }
 
-/// Persistent user settings.
+/// Persistent user settings. Decoding tolerates missing keys, so adding a
+/// setting never resets the others.
 struct AppSettings: Codable, Equatable {
     var difficulty: AIDifficulty = .intermediate
     var controls = ControlSettings()
+    /// When on, control assistance follows the opponent difficulty
+    /// (Beginner → Beginner, Intermediate → Standard, Advanced → Expert).
+    var assistFollowsDifficulty = true
     var soundEnabled = true
     var hapticsEnabled = true
     var showSpinIndicator = true
     var trainingOverlays = true
+    /// Camera shake, FOV kick and trail emphasis.
+    var motionEffects = true
+    var serveTutorialDone = false
     var ballSkin: BallSkin = .classic
 
-    private static let key = "pongo.settings.v1"
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AppSettings()
+        difficulty = (try? c.decodeIfPresent(AIDifficulty.self, forKey: .difficulty)) ?? d.difficulty
+        controls = (try? c.decodeIfPresent(ControlSettings.self, forKey: .controls)) ?? d.controls
+        assistFollowsDifficulty = (try? c.decodeIfPresent(Bool.self, forKey: .assistFollowsDifficulty)) ?? d.assistFollowsDifficulty
+        soundEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .soundEnabled)) ?? d.soundEnabled
+        hapticsEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .hapticsEnabled)) ?? d.hapticsEnabled
+        showSpinIndicator = (try? c.decodeIfPresent(Bool.self, forKey: .showSpinIndicator)) ?? d.showSpinIndicator
+        trainingOverlays = (try? c.decodeIfPresent(Bool.self, forKey: .trainingOverlays)) ?? d.trainingOverlays
+        motionEffects = (try? c.decodeIfPresent(Bool.self, forKey: .motionEffects)) ?? d.motionEffects
+        serveTutorialDone = (try? c.decodeIfPresent(Bool.self, forKey: .serveTutorialDone)) ?? d.serveTutorialDone
+        ballSkin = (try? c.decodeIfPresent(BallSkin.self, forKey: .ballSkin)) ?? d.ballSkin
+    }
+
+    /// The assistance level actually used in a game.
+    var effectiveAssist: AssistLevel {
+        guard assistFollowsDifficulty else { return controls.assist }
+        switch difficulty {
+        case .beginner: return .beginner
+        case .intermediate: return .standard
+        case .advanced: return .expert
+        }
+    }
+
+    /// The control settings a game should use.
+    var gameControls: ControlSettings {
+        var c = controls
+        c.assist = effectiveAssist
+        return c
+    }
+
+    // v2: Build 2 controls (auto paddle by default).
+    private static let key = "pongo.settings.v2"
 
     static func load() -> AppSettings {
         guard let data = UserDefaults.standard.data(forKey: key),

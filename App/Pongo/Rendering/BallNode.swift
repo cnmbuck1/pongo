@@ -43,6 +43,10 @@ final class BallNode: SCNNode {
             m = Materials.pbr(.white, metalness: 0, roughness: 0.45)
             m.diffuse.contents = Materials.ballTexture(base: UIColor(white: 0.97, alpha: 1),
                                                        mark: UIColor(white: 0.55, alpha: 1), bands: false)
+            // Slight self-illumination keeps a crisp white silhouette
+            // against the dark arena without blooming.
+            m.emission.contents = UIColor(white: 1, alpha: 1)
+            m.emission.intensity = 0.3
         case .energy:
             m = Materials.pbr(.white, metalness: 0.55, roughness: 0.3)
             m.diffuse.contents = Materials.ballTexture(base: UIColor(white: 0.92, alpha: 1),

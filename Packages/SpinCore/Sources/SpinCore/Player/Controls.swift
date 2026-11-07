@@ -42,7 +42,7 @@ public enum AssistLevel: String, Codable, CaseIterable {
 
     /// 0...1 blend from the natural blade angle toward the solved blade angle.
     public var aimAssist: Double {
-        switch self { case .beginner: return 0.95; case .standard: return 0.86; case .expert: return 0.62 }
+        switch self { case .beginner: return 0.96; case .standard: return 0.92; case .expert: return 0.72 }
     }
     /// 0...1 pull of paddle x/y toward the predicted ball path.
     public var positionAssist: Double {
@@ -56,10 +56,92 @@ public enum AssistLevel: String, Codable, CaseIterable {
     public var extraHitRadius: Double {
         switch self { case .beginner: return 0.035; case .standard: return 0.018; case .expert: return 0.006 }
     }
+
+    // MARK: Auto paddle (Build 2 control scheme)
+
+    /// Top tracking speed (m/s) of the auto-positioned paddle.
+    public var trackSpeed: Double {
+        switch self { case .beginner: return 4.6; case .standard: return 3.8; case .expert: return 3.1 }
+    }
+    /// Tracking acceleration limit (m/s²).
+    public var trackAcceleration: Double {
+        switch self { case .beginner: return 32; case .standard: return 24; case .expert: return 17 }
+    }
+    /// Delay (s) after the opponent's hit before the paddle starts tracking.
+    public var reactionDelay: Double {
+        switch self { case .beginner: return 0.06; case .standard: return 0.12; case .expert: return 0.18 }
+    }
+    /// Stroke timing windows (s), measured from the ideal swipe moment.
+    public var timing: TimingWindows {
+        switch self {
+        case .beginner: return TimingWindows(perfect: 0.07, good: 0.17, accept: 0.36)
+        case .standard: return TimingWindows(perfect: 0.045, good: 0.11, accept: 0.24)
+        case .expert: return TimingWindows(perfect: 0.025, good: 0.07, accept: 0.15)
+        }
+    }
+}
+
+/// How far from the ideal moment a swipe may be and still count.
+public struct TimingWindows: Codable, Equatable {
+    public var perfect: Double
+    public var good: Double
+    /// Beyond this a swipe is ignored (no stroke).
+    public var accept: Double
+    public init(perfect: Double, good: Double, accept: Double) {
+        self.perfect = perfect; self.good = good; self.accept = accept
+    }
+    public func classify(_ delta: Double) -> StrokeTiming? {
+        let a = abs(delta)
+        if a <= perfect { return .perfect }
+        if a <= good { return .good }
+        if a <= accept { return delta > 0 ? .early : .late }
+        return nil
+    }
+}
+
+/// Timing quality of a stroke.
+public enum StrokeTiming: String, Codable, Equatable {
+    case perfect, good, early, late
+
+    /// Multiplies the blade-angle assistance.
+    public var accuracy: Double {
+        switch self { case .perfect: return 1.0; case .good: return 0.85; case .early, .late: return 0.45 }
+    }
+    /// Multiplies stroke speed.
+    public var power: Double {
+        switch self { case .perfect: return 1.05; case .good: return 1.0; case .early, .late: return 0.8 }
+    }
+    /// Blade turn (rad) from hitting the ball early (in front) or late.
+    public var yawError: Double {
+        switch self { case .early: return 0.10; case .late: return -0.10; default: return 0 }
+    }
+}
+
+/// How a swipe becomes a stroke. Vertical motion mainly makes topspin or
+/// backspin, horizontal motion mainly places the ball left or right and adds
+/// some sidespin, and swipe speed sets power. Placement and sidespin have
+/// separate weights so later builds can decouple them.
+public struct StrokeMapping: Codable, Equatable {
+    /// Forward speed (m/s) at zero swipe speed, and added per screen-height/s.
+    public var basePower = 1.0
+    public var powerPerSpeed = 1.5
+    public var maxForward = 9.0
+    /// Brush speed (m/s) per screen-height/s of vertical swipe (topspin/backspin).
+    public var verticalBrush = 0.95
+    /// Brush speed (m/s) per screen-height/s of horizontal swipe (sidespin).
+    public var lateralBrush = 0.55
+    /// How far (m) a fully horizontal swipe moves the aim point across the
+    /// opponent's half.
+    public var lateralPlacement = 0.5
+    public init() {}
 }
 
 /// How touches drive the paddle.
 public enum ControlScheme: String, Codable, CaseIterable {
+    /// Build 2 default: the paddle positions itself on the predicted ball
+    /// path (with speed, reach and reaction limits); the player only swipes
+    /// to strike, anywhere on the screen.
+    case autoTrack
     /// One finger does everything: the paddle follows the finger and the
     /// finger's swipe speed/direction becomes the stroke.
     case swipe
@@ -68,12 +150,17 @@ public enum ControlScheme: String, Codable, CaseIterable {
     case dragAndFlick
 
     public var displayName: String {
-        switch self { case .swipe: return "One-finger swipe"; case .dragAndFlick: return "Drag + flick" }
+        switch self {
+        case .autoTrack: return "Auto paddle"
+        case .swipe: return "Finger paddle"
+        case .dragAndFlick: return "Drag + flick"
+        }
     }
 }
 
 public struct ControlSettings: Codable, Equatable {
-    public var scheme: ControlScheme = .swipe
+    public var scheme: ControlScheme = .autoTrack
+    public var mapping = StrokeMapping()
     public var assist: AssistLevel = .standard
     /// Vertical offset between finger and paddle, in screen heights, so the
     /// finger doesn't cover the incoming ball (applied by the UI layer).

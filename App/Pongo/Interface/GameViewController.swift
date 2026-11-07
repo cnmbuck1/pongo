@@ -26,7 +26,13 @@ final class GameViewController: UIViewController {
     private let pauseButton = UIButton(type: .system)
     private var overlay: UIView?
     private var hudTimer: CADisplayLink?
-    private var lastServeHintShown = false
+    // Short animated tutorial (Build 2): TAP TO TOSS → SWIPE TO SERVE, and
+    // SWIPE TO HIT on the first incoming ball. Gone after the first serve /
+    // first return; Training always shows the hitting prompt again.
+    private let tutorial = makeLabel("", size: 22, weight: .heavy, color: Palette.cyan, kern: 4)
+    private var tutorialText = ""
+    private var serveTutorialActive = false
+    private var hitTutorialActive = false
 
     // Touch tracking (single finger).
     private weak var activeTouch: UITouch?
@@ -38,7 +44,7 @@ final class GameViewController: UIViewController {
         var setup = GameSetup()
         setup.mode = mode
         setup.difficulty = mode == .training ? .beginner : settings.difficulty
-        setup.controls = settings.controls
+        setup.controls = settings.gameControls
         setup.seed = UInt64(Date().timeIntervalSince1970)
         let sim = demo
             ? GameSimulation(setup: setup,
@@ -47,6 +53,7 @@ final class GameViewController: UIViewController {
             : GameSimulation(setup: setup)
         let renderer = GameRenderer(table: setup.physics.table, physics: setup.physics, skin: settings.ballSkin)
         renderer.trainingVisuals = mode == .training && settings.trainingOverlays
+        renderer.motionEffects = settings.motionEffects
         host = SimulationHost(sim: sim, renderer: renderer)
         super.init(nibName: nil, bundle: nil)
     }
@@ -161,7 +168,14 @@ final class GameViewController: UIViewController {
         callout.layer.shadowOpacity = 0.8
         callout.layer.shadowOffset = .zero
         hint.numberOfLines = 0
-        [callout, hint, contactReadout].forEach { view.addSubview($0) }
+        [callout, hint, contactReadout, tutorial].forEach { view.addSubview($0) }
+        tutorial.layer.shadowColor = Palette.cyan.cgColor
+        tutorial.layer.shadowRadius = 10
+        tutorial.layer.shadowOpacity = 0.7
+        tutorial.layer.shadowOffset = .zero
+        tutorial.isUserInteractionEnabled = false
+        serveTutorialActive = !settings.serveTutorialDone && mode == .match
+        hitTutorialActive = !settings.serveTutorialDone || mode == .training
         spinIndicator.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(spinIndicator)
         spinIndicator.isHidden = !(settings.showSpinIndicator || mode == .training)
@@ -191,6 +205,8 @@ final class GameViewController: UIViewController {
             pauseButton.heightAnchor.constraint(equalToConstant: 40),
             callout.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             callout.topAnchor.constraint(equalTo: barBG.bottomAnchor, constant: 40),
+            tutorial.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            tutorial.bottomAnchor.constraint(equalTo: g.bottomAnchor, constant: -70),
             hint.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             hint.bottomAnchor.constraint(equalTo: g.bottomAnchor, constant: -28),
             hint.leadingAnchor.constraint(greaterThanOrEqualTo: g.leadingAnchor, constant: 24),
@@ -215,11 +231,7 @@ final class GameViewController: UIViewController {
         } else {
             gamesLabel.text = "RETURNS \(returns)"
         }
-        let showServeHint = phase == .serving && server == .near
-        if showServeHint != lastServeHintShown {
-            lastServeHintShown = showServeHint
-            hint.text = showServeHint ? "Swipe up to serve. Swipe sideways or down to add spin." : ""
-        }
+        _ = phase; _ = server
         if mode == .training, settings.trainingOverlays, let c = contact {
             let who = c.side == .near ? "YOU" : "FEEDER"
             contactReadout.text = String(format: "%@  %.1f m/s\n%@  %.0f rpm", who, c.ballSpeed,
@@ -227,7 +239,40 @@ final class GameViewController: UIViewController {
         }
     }
 
+    private func updateTutorial() {
+        guard serveTutorialActive || hitTutorialActive else {
+            if !tutorialText.isEmpty { setTutorial("") }
+            return
+        }
+        let (phase, server, held, incoming) = host.withSim { sim in
+            (sim.phase, sim.server, sim.world.ballHeld,
+             sim.referee.lastHitter == .far && sim.phase == .rally)
+        }
+        var text = ""
+        if serveTutorialActive && phase == .serving && server == .near {
+            text = held ? "TAP TO TOSS" : "SWIPE TO SERVE"
+        } else if hitTutorialActive && incoming {
+            text = "SWIPE UP TO HIT"
+        }
+        if text != tutorialText { setTutorial(text) }
+    }
+
+    private func setTutorial(_ text: String) {
+        tutorialText = text
+        tutorial.layer.removeAllAnimations()
+        tutorial.attributedText = NSAttributedString(string: text, attributes: [
+            .kern: 4, .font: tutorial.font!, .foregroundColor: Palette.cyan])
+        guard !text.isEmpty else { return }
+        tutorial.alpha = 1
+        tutorial.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        UIView.animate(withDuration: 0.55, delay: 0, options: [.autoreverse, .repeat, .allowUserInteraction, .curveEaseInOut]) {
+            self.tutorial.alpha = 0.45
+            self.tutorial.transform = .identity
+        }
+    }
+
     @objc private func hudTick() {
+        updateTutorial()
         guard spinIndicator.isHidden == false else { return }
         let reading: SpinReading? = host.withSim { sim in
             sim.world.ballHeld ? nil : SpinReading(ball: sim.world.ball)
@@ -262,6 +307,16 @@ final class GameViewController: UIViewController {
                     if p.side == .near {
                         let power = min(1, p.ballAfter.velocity.length / 14)
                         HapticManager.shared.paddleContact(power: power)
+                        let strokes = host.withSim { $0.referee.strokes }
+                        if strokes == 1, serveTutorialActive {
+                            serveTutorialActive = false
+                            settings.serveTutorialDone = true
+                            var saved = AppSettings.load()
+                            saved.serveTutorialDone = true
+                            saved.save()
+                        } else if strokes > 1 {
+                            hitTutorialActive = false
+                        }
                     }
                 case .tableBounce: SoundManager.shared.play(.table, strength: strength)
                 case .netTouch: SoundManager.shared.play(.net, strength: strength)

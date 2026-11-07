@@ -14,7 +14,7 @@ enum ArenaBuilder {
         scene.fogEndDistance = 26
         scene.fogDensityExponent = 1.4
         scene.lightingEnvironment.contents = Palette.deepBlue
-        scene.lightingEnvironment.intensity = 0.6
+        scene.lightingEnvironment.intensity = 0.35
 
         let root = scene.rootNode
         root.addChildNode(makeFloor())
@@ -38,7 +38,7 @@ enum ArenaBuilder {
 
         // Court boundary markings on the floor.
         let ring = SCNNode(geometry: SCNTorus(ringRadius: 4.2, pipeRadius: 0.012))
-        ring.geometry?.materials = [Materials.glow(Palette.cyan, intensity: 0.5)]
+        ring.geometry?.materials = [Materials.glow(Palette.cyan.withAlphaComponent(0.5), intensity: 0.25)]
         ring.scale = SCNVector3(0.75, 1, 1.25)
         ring.position = SCNVector3(0, 0.002, 0)
         ring.castsShadow = false
@@ -49,8 +49,8 @@ enum ArenaBuilder {
     private static func makeArchitecture() -> SCNNode {
         let group = SCNNode()
         let pillarMat = Materials.pbr(Palette.charcoal, metalness: 0.8, roughness: 0.45)
-        let cyanStrip = Materials.glow(Palette.cyan, intensity: 0.7)
-        let violetStrip = Materials.glow(Palette.violet, intensity: 0.6)
+        let cyanStrip = Materials.glow(Palette.cyan.mixed(with: .black, 0.45), intensity: 0.35)
+        let violetStrip = Materials.glow(Palette.violet.mixed(with: .black, 0.45), intensity: 0.3)
         let count = 14
         for i in 0..<count {
             let a = Float(i) / Float(count) * 2 * .pi
@@ -69,7 +69,7 @@ enum ArenaBuilder {
         }
         // Overhead halo ring.
         let halo = SCNNode(geometry: SCNTorus(ringRadius: 3.2, pipeRadius: 0.03))
-        halo.geometry?.materials = [Materials.glow(Palette.cyan, intensity: 0.8)]
+        halo.geometry?.materials = [Materials.glow(Palette.cyan.mixed(with: .black, 0.4), intensity: 0.4)]
         halo.scale = SCNVector3(0.8, 1, 1.3)
         halo.position = SCNVector3(0, 4.2, 0)
         halo.castsShadow = false
@@ -84,7 +84,7 @@ enum ArenaBuilder {
     private static func makeStands() -> SCNNode {
         let group = SCNNode()
         let tierMat = Materials.pbr(UIColor(red: 0.05, green: 0.06, blue: 0.10, alpha: 1), metalness: 0.3, roughness: 0.8)
-        let band = Materials.glow(Palette.cyan.withAlphaComponent(0.8), intensity: 0.35)
+        let band = Materials.glow(Palette.cyan.mixed(with: .black, 0.6), intensity: 0.18)
         for row in 0..<5 {
             let w = CGFloat(14 + row * 2)
             let tier = SCNNode(geometry: SCNBox(width: w, height: 0.6, length: 1.2, chamferRadius: 0))
@@ -133,12 +133,12 @@ enum ArenaBuilder {
     private static func makeParticles() -> SCNNode {
         let ps = SCNParticleSystem()
         ps.particleImage = Materials.radialSprite(Palette.cyan)
-        ps.birthRate = 14
+        ps.birthRate = 6
         ps.particleLifeSpan = 9
         ps.particleLifeSpanVariation = 3
         ps.particleSize = 0.03
         ps.particleSizeVariation = 0.02
-        ps.particleColor = Palette.cyan.withAlphaComponent(0.35)
+        ps.particleColor = Palette.cyan.withAlphaComponent(0.18)
         ps.particleColorVariation = SCNVector4(0.05, 0.1, 0.2, 0.2)
         ps.particleVelocity = 0.08
         ps.particleVelocityVariation = 0.06
@@ -158,7 +158,7 @@ enum ArenaBuilder {
         let ambient = SCNLight()
         ambient.type = .ambient
         ambient.color = UIColor(red: 0.25, green: 0.30, blue: 0.45, alpha: 1)
-        ambient.intensity = 260
+        ambient.intensity = 170
         let an = SCNNode(); an.light = ambient
         root.addChildNode(an)
 
@@ -166,7 +166,7 @@ enum ArenaBuilder {
         // tightly coned so it lights the table without a glaring hotspot.
         let key = SCNLight()
         key.type = .spot
-        key.intensity = 650
+        key.intensity = 380
         key.color = UIColor(white: 0.96, alpha: 1)
         key.spotInnerAngle = 50
         key.spotOuterAngle = 75

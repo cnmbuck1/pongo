@@ -10,6 +10,8 @@ final class ScriptedTouchPlayer {
     var swipeVX: Double
     var swipeVY: Double
     var leadTime: Double
+    /// When false the bot serves but never swipes during rallies.
+    var rallySwipes = true
     private var touching = false
     private var screen = (x: 0.5, y: 0.25)
     private var swipeFramesLeft = 0
@@ -65,7 +67,7 @@ final class ScriptedTouchPlayer {
                                                   alreadyBounced: sim.referee.bouncedOnReceiver) else { return }
         setPad(ic.point)
         if !touching { touching = true; screen = (0.5, 0.3); emit(.began) } else { emit(.moved) }
-        if ic.timeFromNow < leadTime && swungForHit != sim.referee.strokes.hashValue.double {
+        if rallySwipes && ic.timeFromNow < leadTime && swungForHit != sim.referee.strokes.hashValue.double {
             swungForHit = sim.referee.strokes.hashValue.double
             startSwipe()
         }

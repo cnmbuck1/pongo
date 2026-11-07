@@ -77,6 +77,55 @@ final class GameplayTests: XCTestCase {
         XCTAssertGreaterThan(sim.score.points(.near) + sim.score.games(.near) * 11, 0, "player should win some points")
     }
 
+    private func returns(scheme: ControlScheme, assist: AssistLevel, leadTime: Double = 0.11,
+                         swipes: Bool = true, seconds: Double = 90, swipeVY: Double = 1.6) -> Int {
+        var setup = GameSetup()
+        setup.controls.scheme = scheme
+        setup.controls.assist = assist
+        setup.difficulty = .beginner
+        let sim = GameSimulation(setup: setup)
+        let bot = ScriptedTouchPlayer(sim: sim, swipeVX: 0, swipeVY: swipeVY, leadTime: leadTime)
+        bot.rallySwipes = swipes
+        var ticks = 0
+        while ticks < Int(240 * seconds) && sim.phase != .matchEnded {
+            bot.tick(); sim.step(); _ = sim.drainEvents(); ticks += 1
+        }
+        return sim.stats.successfulReturns
+    }
+
+    func testAutoPaddleReturnsWellTimedSwipes() {
+        // Light-topspin swipes; Expert is harder (slower tracking, later
+        // reaction, tighter windows, less blade assistance).
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .beginner), 25)
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .standard), 20)
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .expert), 4)
+        XCTAssertGreaterThan(returns(scheme: .autoTrack, assist: .standard, swipeVY: -2.2), 20, "backspin")
+    }
+
+    func testAutoPaddleNeedsASwipe() {
+        XCTAssertEqual(returns(scheme: .autoTrack, assist: .beginner, swipes: false, seconds: 40), 0,
+                       "without a swipe the paddle must not return the ball")
+    }
+
+    func testAutoPaddleIgnoresFarTooEarlySwipes() {
+        // Swiping half a second before contact is outside every window.
+        XCTAssertEqual(returns(scheme: .autoTrack, assist: .expert, leadTime: 0.55, seconds: 40), 0)
+    }
+
+    func testTimingWindowsClassify() {
+        let w = AssistLevel.standard.timing
+        XCTAssertEqual(w.classify(0.01), .perfect)
+        XCTAssertEqual(w.classify(-0.08), .good)
+        XCTAssertEqual(w.classify(0.2), .early)
+        XCTAssertEqual(w.classify(-0.2), .late)
+        XCTAssertNil(w.classify(0.5))
+        XCTAssertGreaterThan(AssistLevel.beginner.timing.good, AssistLevel.expert.timing.good)
+    }
+
+    func testFingerPaddleSchemeStillReturns() {
+        XCTAssertGreaterThan(returns(scheme: .swipe, assist: .standard, swipeVY: -2.2), 10)
+    }
+
     func testPlayerServeWithSwipeIsLegalMostOfTheTime() {
         var setup = GameSetup()
         setup.controls.assist = .standard
@@ -96,7 +145,7 @@ final class GameplayTests: XCTestCase {
         XCTAssertLessThan(Double(faults), Double(serves) * 0.5)
     }
 
-    func testSwipeServesOnlyWhenServing() {
+    func testTapTossesAndSwipeServes() {
         let sim = GameSimulation(setup: GameSetup())
         func swipe() {
             var y = 0.25
@@ -114,13 +163,16 @@ final class GameplayTests: XCTestCase {
         XCTAssertTrue(sim.world.ballHeld)
         while sim.phase == .ready { sim.step() }
         XCTAssertEqual(sim.phase, .serving)
-        // A plain touch while serving does nothing...
+        // A tap while serving tosses the ball...
         sim.handleInput(phase: .began, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
-        for _ in 0..<30 { sim.step() }
-        XCTAssertTrue(sim.world.ballHeld, "a touch alone must not toss")
-        sim.handleInput(phase: .ended, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
         sim.step()
-        // ...one swipe tosses and then strikes the ball automatically.
+        XCTAssertFalse(sim.world.ballHeld, "a tap during own serve tosses the ball")
+        sim.handleInput(phase: .ended, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
+        // ...and with no swipe the toss drops and is held again, no point lost.
+        for _ in 0..<(240 * 3) { sim.step() }
+        XCTAssertTrue(sim.world.ballHeld)
+        XCTAssertEqual(sim.referee.strokes, 0)
+        // One swipe tosses and then strikes the ball automatically.
         swipe()
         XCTAssertFalse(sim.world.ballHeld, "a swipe during own serve tosses the ball")
         var struck = false

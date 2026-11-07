@@ -62,6 +62,7 @@ final class SettingsViewController: UIViewController {
         section(title)
         let s = UISegmentedControl(items: items)
         s.selectedSegmentIndex = selected
+        s.apportionsSegmentWidthsByContent = true
         s.selectedSegmentTintColor = Palette.cyan
         s.setTitleTextAttributes([.foregroundColor: Palette.midnight], for: .selected)
         s.setTitleTextAttributes([.foregroundColor: Palette.white], for: .normal)
@@ -100,17 +101,20 @@ final class SettingsViewController: UIViewController {
                   selected: AIDifficulty.allCases.firstIndex(of: settings.difficulty) ?? 1) { [weak self] i in
             self?.settings.difficulty = AIDifficulty.allCases[i]
         }
-        segmented("Control assistance", AssistLevel.allCases.map { $0.displayName },
-                  selected: AssistLevel.allCases.firstIndex(of: settings.controls.assist) ?? 1) { [weak self] i in
-            self?.settings.controls.assist = AssistLevel.allCases[i]
+        let assistItems = ["Match opponent"] + AssistLevel.allCases.map { $0.displayName }
+        let assistIndex = settings.assistFollowsDifficulty ? 0 : 1 + (AssistLevel.allCases.firstIndex(of: settings.controls.assist) ?? 1)
+        segmented("Control assistance", assistItems, selected: assistIndex) { [weak self] i in
+            guard let self else { return }
+            self.settings.assistFollowsDifficulty = i == 0
+            if i > 0 { self.settings.controls.assist = AssistLevel.allCases[i - 1] }
         }
-        note("Assistance helps paddle positioning, timing and blade angle. It never guarantees a return.")
+        note("Assistance sets how quickly the paddle tracks the ball, how wide the timing window is and how much the blade angle is helped. It never guarantees a return. \"Match opponent\" uses Beginner, Standard or Expert to match the opponent.")
         segmented("Control scheme", ControlScheme.allCases.map { $0.displayName },
                   selected: ControlScheme.allCases.firstIndex(of: settings.controls.scheme) ?? 0) { [weak self] i in
             self?.settings.controls.scheme = ControlScheme.allCases[i]
         }
-        note("One-finger swipe: the paddle follows your finger and your swipe is the stroke. Drag + flick: drag slowly to position, flick to strike; the paddle holds position during the flick.")
-        slider("Touch offset (paddle above finger)", Float(settings.controls.touchOffset), 0...0.25) { [weak self] v in
+        note("Auto paddle: the paddle moves to the ball by itself; swipe anywhere to strike. Up for topspin, down for backspin, sideways to place the ball and add sidespin, faster for power. Finger paddle: the paddle follows your finger and your swipe is the stroke. Drag + flick: drag slowly to position, flick to strike.")
+        slider("Touch offset (finger paddle schemes)", Float(settings.controls.touchOffset), 0...0.25) { [weak self] v in
             self?.settings.controls.touchOffset = Double(v)
         }
         slider("Swipe sensitivity", Float(settings.controls.swipeSensitivity), 0.6...1.6) { [weak self] v in
@@ -126,7 +130,8 @@ final class SettingsViewController: UIViewController {
         toggle("Haptics", settings.hapticsEnabled) { [weak self] v in self?.settings.hapticsEnabled = v }
         toggle("Spin indicator", settings.showSpinIndicator) { [weak self] v in self?.settings.showSpinIndicator = v }
         toggle("Training overlays", settings.trainingOverlays) { [weak self] v in self?.settings.trainingOverlays = v }
-        note("Training overlays (spin axis, bounce markers, contact readout) appear only in Training mode.")
+        toggle("Motion effects", settings.motionEffects) { [weak self] v in self?.settings.motionEffects = v }
+        note("Training overlays (spin axis, bounce markers, contact readout) appear only in Training mode. Motion effects are camera shake and trail emphasis on big shots.")
     }
 
     private func changed() {

@@ -103,9 +103,11 @@ final class MenuViewController: UIViewController {
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
 
         difficulty.translatesAutoresizingMaskIntoConstraints = false
+        // Size segments by their labels so "Intermediate" is never truncated.
+        difficulty.apportionsSegmentWidthsByContent = true
         difficulty.selectedSegmentTintColor = Palette.cyan
-        difficulty.setTitleTextAttributes([.foregroundColor: Palette.midnight, .font: UIFont.systemFont(ofSize: 13, weight: .bold)], for: .selected)
-        difficulty.setTitleTextAttributes([.foregroundColor: Palette.white, .font: UIFont.systemFont(ofSize: 13, weight: .semibold)], for: .normal)
+        difficulty.setTitleTextAttributes([.foregroundColor: Palette.midnight, .font: UIFont.systemFont(ofSize: 12, weight: .bold)], for: .selected)
+        difficulty.setTitleTextAttributes([.foregroundColor: Palette.white, .font: UIFont.systemFont(ofSize: 12, weight: .semibold)], for: .normal)
         difficulty.addTarget(self, action: #selector(difficultyChanged), for: .valueChanged)
         let oppLabel = makeLabel("OPPONENT", size: 11, weight: .bold, color: Palette.textDim, kern: 3)
 
