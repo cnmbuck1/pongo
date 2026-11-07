@@ -46,14 +46,13 @@ final class ScriptedTouchPlayer {
         }
         let world = sim.world
         if sim.phase == .serving && sim.server == .near {
-            if world.ballHeld && touching && t - tossedAt > 1.0 {
-                emit(.ended); touching = false
-            } else if world.ballHeld && !touching {
+            // One-swipe serve: swipe while holding the ball; the controller
+            // tosses and strikes on its own. Retry if the toss is re-held.
+            if world.ballHeld && !touching && t - tossedAt > 0.8 {
                 screen = (0.5, 0.25); u = 0.5; v = 0.25
                 touching = true
                 emit(.began)
                 tossedAt = t
-            } else if !world.ballHeld && world.ball.velocity.y < 0 && world.ball.position.y < sim.nearDriver.paddle.position.y + 0.10 {
                 startSwipe()
             }
             return

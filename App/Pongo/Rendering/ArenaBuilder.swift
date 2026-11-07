@@ -28,10 +28,10 @@ enum ArenaBuilder {
 
     private static func makeFloor() -> SCNNode {
         let floor = SCNFloor()
-        floor.reflectivity = 0.18
+        floor.reflectivity = 0.08
         floor.reflectionFalloffEnd = 2.5
         floor.reflectionResolutionScaleFactor = 0.5
-        let m = Materials.pbr(UIColor(red: 0.03, green: 0.04, blue: 0.07, alpha: 1), metalness: 0.4, roughness: 0.55)
+        let m = Materials.pbr(UIColor(red: 0.03, green: 0.04, blue: 0.07, alpha: 1), metalness: 0.1, roughness: 0.85)
         floor.materials = [m]
         let n = SCNNode(geometry: floor)
         n.name = "floor"
@@ -158,17 +158,18 @@ enum ArenaBuilder {
         let ambient = SCNLight()
         ambient.type = .ambient
         ambient.color = UIColor(red: 0.25, green: 0.30, blue: 0.45, alpha: 1)
-        ambient.intensity = 220
+        ambient.intensity = 260
         let an = SCNNode(); an.light = ambient
         root.addChildNode(an)
 
-        // Key light above the table, with soft shadows.
+        // Key light above the table, with soft shadows. Kept moderate and
+        // tightly coned so it lights the table without a glaring hotspot.
         let key = SCNLight()
         key.type = .spot
-        key.intensity = 1600
+        key.intensity = 650
         key.color = UIColor(white: 0.96, alpha: 1)
-        key.spotInnerAngle = 40
-        key.spotOuterAngle = 80
+        key.spotInnerAngle = 50
+        key.spotOuterAngle = 75
         key.castsShadow = true
         key.shadowMode = .deferred
         key.shadowRadius = 6
@@ -176,7 +177,7 @@ enum ArenaBuilder {
         key.shadowColor = UIColor(white: 0, alpha: 0.55)
         key.shadowMapSize = CGSize(width: 1024, height: 1024)
         let kn = SCNNode(); kn.light = key
-        kn.position = SCNVector3(0, 4.2, 0.3)
+        kn.position = SCNVector3(0, 3.2, -0.3)
         kn.eulerAngles.x = -.pi / 2
         root.addChildNode(kn)
 

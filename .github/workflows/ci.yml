@@ -39,3 +39,43 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
+      - name: Screenshots in the iOS Simulator
+        run: |
+          set -e
+          APP=$(find build/Build/Products -name "Pongo.app" -path "*iphonesimulator*" | head -1)
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone') and 'SE' not in x['name']]
+          c.sort(key=lambda x: ('Pro' in x['name'], x['name']))
+          print(c[-1]['udid'] if c else '')")
+          echo "Simulator: $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p screenshots
+          xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo -PongoAutostart
+          sleep 6
+          xcrun simctl io "$UDID" screenshot screenshots/1-serve.png
+          xcrun simctl terminate "$UDID" com.cnmbuckstudios.pongo
+          xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo -PongoDemo
+          sleep 9
+          xcrun simctl io "$UDID" screenshot screenshots/2-rally.png
+          sleep 1.4
+          xcrun simctl io "$UDID" screenshot screenshots/3-rally.png
+          sleep 2.3
+          xcrun simctl io "$UDID" screenshot screenshots/4-rally.png
+          xcrun simctl terminate "$UDID" com.cnmbuckstudios.pongo
+          xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo
+          sleep 5
+          xcrun simctl io "$UDID" screenshot screenshots/5-menu.png
+          for f in screenshots/*.png; do
+            sips -Z 640 -s format jpeg -s formatOptions 60 "$f" --out "${f%.png}.jpg" >/dev/null
+            echo "=== BEGIN ${f%.png}.jpg"; base64 -i "${f%.png}.jpg" | tr -d '\n'; echo; echo "=== END"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-screenshots
+          path: screenshots/
+          if-no-files-found: ignore

@@ -31,15 +31,39 @@ final class GameRenderer {
     private var fovKick: Float = 0
     private var orbitAngle: Float = 0
     private var shotPower: Double = 0
+    private var followX: Float = 0
+    private var playerPaddleX: Float = 0
 
-    static let baseFOV: CGFloat = 66
-    static let cameraPosition = SIMD3<Float>(0, 3.0, 2.4)
-    static let cameraTarget = SIMD3<Float>(0, 0.76, 0.0)
+    // Gameplay camera: low and close behind the player's end of the table so
+    // the table recedes in real perspective and the paddle sits large in the
+    // foreground. It slides sideways with the player's paddle (see
+    // `cameraFollow`), which keeps a wide paddle on screen and adds parallax.
+    static let baseFOV: CGFloat = 50
+    static let cameraPosition = SIMD3<Float>(0, 1.95, 2.6)
+    static let cameraTarget = SIMD3<Float>(0, 0.62, -0.4)
+    /// Fraction of the player's paddle x the camera follows.
+    static let cameraFollow: Float = 0.4
+
+    /// Maps a touch (screen fractions, x from the left, `up` from the bottom,
+    /// touch offset already applied) to the player controller's normalised
+    /// (u, v) so the paddle is drawn where the finger points. Derived from
+    /// the gameplay camera above: at the paddle's default depth the visible
+    /// half-width is about 0.6 m, and with the camera following 40 % of the
+    /// paddle's x, screen edge to edge covers x = ±1.0 m. Paddle height
+    /// 0.80 m sits at 26 % up the screen and 1.42 m at 46 %.
+    static func paddleInput(screenX: Double, up: Double, reach: PaddleReach) -> (u: Double, v: Double) {
+        let x = (screenX - 0.5) * 2 * 1.0
+        let u = (x - reach.xRange.lowerBound) / (reach.xRange.upperBound - reach.xRange.lowerBound)
+        let v = (up - 0.26) / 0.20
+        return (u, v)
+    }
 
     init(table: TableGeometry, physics: PhysicsConfig, skin: BallSkin) {
         scene = ArenaBuilder.makeScene(table: table)
-        nearPaddle = PaddleNode(accent: Palette.cyan, radius: physics.paddleRadius)
-        farPaddle = PaddleNode(accent: Palette.violet, radius: physics.paddleRadius)
+        // Drawn slightly larger than the bare blade so the drawn paddle
+        // matches the hit radius with Standard assist.
+        nearPaddle = PaddleNode(accent: Palette.cyan, radius: physics.paddleRadius * 1.22)
+        farPaddle = PaddleNode(accent: Palette.violet, radius: physics.paddleRadius * 1.22)
         ballNode = BallNode(radius: physics.ball.radius, skin: skin)
 
         camera.projectionDirection = .horizontal
@@ -47,9 +71,13 @@ final class GameRenderer {
         camera.zNear = 0.05
         camera.zFar = 60
         camera.wantsHDR = true
-        camera.bloomIntensity = 0.6
-        camera.bloomThreshold = 0.75
-        camera.bloomBlurRadius = 6
+        // Fixed exposure: auto exposure brightened the dark arena until the
+        // key light washed out the table.
+        camera.wantsExposureAdaptation = false
+        camera.exposureOffset = 0
+        camera.bloomIntensity = 0.35
+        camera.bloomThreshold = 1.0
+        camera.bloomBlurRadius = 5
         camera.vignettingIntensity = 0.35
         camera.vignettingPower = 0.6
         cameraNode.camera = camera
@@ -104,6 +132,7 @@ final class GameRenderer {
     func update(sim: GameSimulation, frameDt: Double) {
         let world = sim.world
         nearPaddle.apply(sim.nearDriver.paddle)
+        playerPaddleX = Float(sim.nearDriver.paddle.position.x)
         farPaddle.apply(sim.farDriver.paddle)
         ballNode.update(ball: world.ball, dt: frameDt, power: shotPower)
         shotPower *= 0.9
@@ -156,13 +185,16 @@ final class GameRenderer {
     private func updateCamera(_ dt: Double) {
         switch cameraMode {
         case .gameplay:
-            var pos = Self.cameraPosition
+            let k = Float(1 - exp(-dt / 0.12))
+            followX += (playerPaddleX * Self.cameraFollow - followX) * k
+            let slide = SIMD3<Float>(followX, 0, 0)
+            var pos = Self.cameraPosition + slide
             if shake > 0.0001 {
                 pos += SIMD3<Float>(Float.random(in: -1...1), Float.random(in: -1...1), 0) * shake
                 shake *= 0.82
             }
             cameraNode.simdPosition = pos
-            cameraNode.simdLook(at: Self.cameraTarget)
+            cameraNode.simdLook(at: Self.cameraTarget + slide)
             camera.fieldOfView = Self.baseFOV + CGFloat(fovKick)
             fovKick *= 0.88
         case .orbit:

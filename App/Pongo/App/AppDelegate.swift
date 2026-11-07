@@ -35,6 +35,13 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         nav.overrideUserInterfaceStyle = .dark
         window.rootViewController = nav
         window.makeKeyAndVisible()
+        // Screenshot automation (CI): jump straight into a match.
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-PongoAutostart") || args.contains("-PongoDemo") {
+            let game = GameViewController(mode: .match, settings: AppSettings.load(),
+                                          demo: args.contains("-PongoDemo"))
+            nav.pushViewController(game, animated: false)
+        }
         self.window = window
     }
 

@@ -96,18 +96,39 @@ final class GameplayTests: XCTestCase {
         XCTAssertLessThan(Double(faults), Double(serves) * 0.5)
     }
 
-    func testTouchTossesBallOnlyWhenServing() {
+    func testSwipeServesOnlyWhenServing() {
         let sim = GameSimulation(setup: GameSetup())
-        // Ready phase: touching must not toss.
-        sim.handleInput(phase: .began, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
-        sim.step()
+        func swipe() {
+            var y = 0.25
+            sim.handleInput(phase: .began, u: 0.5, v: 0.3, screenX: 0.5, screenY: y)
+            for _ in 0..<6 {
+                for _ in 0..<4 { sim.step() }
+                y += 2.6 / 60
+                sim.handleInput(phase: .moved, u: 0.5, v: 0.3, screenX: 0.5, screenY: y)
+            }
+            sim.handleInput(phase: .ended, u: 0.5, v: 0.3, screenX: 0.5, screenY: y)
+            sim.step()
+        }
+        // Ready phase: a swipe must not toss.
+        swipe()
         XCTAssertTrue(sim.world.ballHeld)
-        sim.handleInput(phase: .ended, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
         while sim.phase == .ready { sim.step() }
         XCTAssertEqual(sim.phase, .serving)
+        // A plain touch while serving does nothing...
         sim.handleInput(phase: .began, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
+        for _ in 0..<30 { sim.step() }
+        XCTAssertTrue(sim.world.ballHeld, "a touch alone must not toss")
+        sim.handleInput(phase: .ended, u: 0.5, v: 0.3, screenX: 0.5, screenY: 0.3)
         sim.step()
-        XCTAssertFalse(sim.world.ballHeld, "touch during own serve tosses the ball")
+        // ...one swipe tosses and then strikes the ball automatically.
+        swipe()
+        XCTAssertFalse(sim.world.ballHeld, "a swipe during own serve tosses the ball")
+        var struck = false
+        for _ in 0..<(240 * 2) {
+            sim.step()
+            if sim.referee.strokes >= 1 { struck = true; break }
+        }
+        XCTAssertTrue(struck, "the queued serve stroke hits the tossed ball")
     }
 
     func testSwipeDirectionMapsToSpin() {

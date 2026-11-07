@@ -34,6 +34,13 @@ public final class PlayerPaddleController: PaddleDriver {
     private var swingOffset: Double = 0
     private var lastSwipeLateral: Double = 0
 
+    // One-swipe serve: a swipe while holding the ball tosses it and queues
+    // the stroke, which is released automatically as the ball drops back to
+    // the blade. The paddle holds where the swipe started meanwhile.
+    public private(set) var queuedServe: Vec3?
+    private var serveLock: (u: Double, v: Double)?
+    private var touchStartUV = (u: 0.5, v: 0.3)
+
     // Positioning.
     private var position: Vec3
     private var depth: Double
@@ -67,6 +74,8 @@ public final class PlayerPaddleController: PaddleDriver {
         flickFreezeUntil = -1
         swingOffset = 0
         intercept = nil
+        queuedServe = nil
+        serveLock = nil
     }
 
     // MARK: Swipe mapping
@@ -97,7 +106,12 @@ public final class PlayerPaddleController: PaddleDriver {
         tick += 1
         let now = ctx.time
         var requestToss = false
-        let frozen = settings.scheme == .dragAndFlick && now < flickFreezeUntil
+        let serving = ctx.isServing(side) && ctx.refereePhase == .awaitingServe
+        if !serving || ctx.ballHeld && queuedServe == nil {
+            serveLock = nil
+        }
+        if ctx.ballHeld { queuedServe = nil }
+        let frozen = serveLock != nil || (settings.scheme == .dragAndFlick && now < flickFreezeUntil)
 
         // 1. Consume input up to now.
         pending.sort { $0.time < $1.time }
@@ -107,8 +121,8 @@ public final class PlayerPaddleController: PaddleDriver {
             case .began:
                 touching = true
                 samples = [(e.time, e.screenX, e.screenY)]
+                touchStartUV = (e.u, e.v)
                 if !frozen { padU = e.u; padV = e.v }
-                if ctx.isServing(side) && ctx.ballHeld { requestToss = true }
             case .moved:
                 samples.append((e.time, e.screenX, e.screenY))
                 if !frozen { padU = e.u; padV = e.v }
@@ -132,7 +146,19 @@ public final class PlayerPaddleController: PaddleDriver {
                     let fwd = clamp(abs(stroke.z), 5.0, 6.2)
                     stroke = Vec3(stroke.x * 0.5, clamp(stroke.y * 0.35, -0.8, 0.4), side.hitDirection * fwd)
                 }
-                if activeSwing == nil || now > swingUntil || stroke.length > activeSwing!.length {
+                if serving && (ctx.ballHeld || queuedServe != nil) {
+                    // One-swipe serve: toss now, strike when the ball drops.
+                    if ctx.ballHeld { requestToss = true }
+                    if queuedServe == nil || stroke.length > queuedServe!.length {
+                        queuedServe = stroke
+                        lastSwipeLateral = clamp(fv.0 / max(speed, 1e-6), -1, 1)
+                    }
+                    if serveLock == nil {
+                        serveLock = touchStartUV
+                        padU = touchStartUV.u
+                        padV = touchStartUV.v
+                    }
+                } else if activeSwing == nil || now > swingUntil || stroke.length > activeSwing!.length {
                     activeSwing = stroke
                     lastSwipeLateral = clamp(fv.0 / max(speed, 1e-6), -1, 1)
                 }
@@ -141,6 +167,13 @@ public final class PlayerPaddleController: PaddleDriver {
                     flickFreezeUntil = now + max(window, 0.15)
                 }
             }
+        }
+        // Release a queued serve as the tossed ball falls back to the blade.
+        if let q = queuedServe, serving, !ctx.ballHeld,
+           ctx.ball.velocity.y < 0, ctx.ball.position.y < position.y + 0.10 {
+            activeSwing = q
+            swingUntil = now + max(window, 0.15)
+            queuedServe = nil
         }
         if now > swingUntil { activeSwing = nil }
 
@@ -169,7 +202,8 @@ public final class PlayerPaddleController: PaddleDriver {
         var depthTarget = reach.defaultDepth
         if let ic = intercept {
             let servingToss = ctx.isServing(side) && !ctx.ballIncoming(to: side)
-            let a = servingToss ? max(settings.assist.positionAssist, 0.7) : settings.assist.positionAssist
+            let a = servingToss ? (serveLock != nil ? 1.0 : max(settings.assist.positionAssist, 0.7))
+                                : settings.assist.positionAssist
             x += (ic.point.x - x) * a
             y += (ic.point.y - y) * a
             if ctx.ballIncoming(to: side) {

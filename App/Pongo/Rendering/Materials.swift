@@ -32,7 +32,9 @@ enum Materials {
     }
 
     static let tableTop: SCNMaterial = {
-        let m = pbr(Palette.graphite, metalness: 0.15, roughness: 0.32)
+        // Matte, like a real table top: a glossy surface mirrored the key
+        // light straight at the camera.
+        let m = pbr(Palette.graphite, metalness: 0.0, roughness: 0.75)
         m.diffuse.contents = tableTexture()
         return m
     }()

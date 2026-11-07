@@ -21,6 +21,8 @@ concurrency:
 jobs:
   upload:
     name: Build and upload to TestFlight
+    # Put "[skip testflight]" in a commit message to push without uploading.
+    if: ${{ !contains(github.event.head_commit.message, '[skip testflight]') }}
     runs-on: macos-26
     timeout-minutes: 60
     env:

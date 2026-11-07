@@ -31,7 +31,8 @@ final class GameViewController: UIViewController {
     // Touch tracking (single finger).
     private weak var activeTouch: UITouch?
 
-    init(mode: GameMode, settings: AppSettings) {
+    /// `demo` (screenshot automation only) lets an AI play the near side too.
+    init(mode: GameMode, settings: AppSettings, demo: Bool = false) {
         self.mode = mode
         self.settings = settings
         var setup = GameSetup()
@@ -39,7 +40,11 @@ final class GameViewController: UIViewController {
         setup.difficulty = mode == .training ? .beginner : settings.difficulty
         setup.controls = settings.controls
         setup.seed = UInt64(Date().timeIntervalSince1970)
-        let sim = GameSimulation(setup: setup)
+        let sim = demo
+            ? GameSimulation(setup: setup,
+                             near: AIOpponentController(side: .near, profile: .intermediate, seed: setup.seed),
+                             far: AIOpponentController(side: .far, profile: .intermediate, seed: setup.seed &+ 1))
+            : GameSimulation(setup: setup)
         let renderer = GameRenderer(table: setup.physics.table, physics: setup.physics, skin: settings.ballSkin)
         renderer.trainingVisuals = mode == .training && settings.trainingOverlays
         host = SimulationHost(sim: sim, renderer: renderer)
@@ -213,7 +218,7 @@ final class GameViewController: UIViewController {
         let showServeHint = phase == .serving && server == .near
         if showServeHint != lastServeHintShown {
             lastServeHintShown = showServeHint
-            hint.text = showServeHint ? "Touch to toss, then swipe up through the ball to serve" : ""
+            hint.text = showServeHint ? "Swipe up to serve. Swipe sideways or down to add spin." : ""
         }
         if mode == .training, settings.trainingOverlays, let c = contact {
             let who = c.side == .near ? "YOU" : "FEEDER"
@@ -303,21 +308,19 @@ final class GameViewController: UIViewController {
 
     // MARK: Touch input
 
-    /// Converts a touch to simulation input. Horizontal position maps across
-    /// the reachable width; vertical position (with the occlusion offset)
-    /// maps to paddle height. The swipe itself is read from raw screen motion.
+    /// Converts a touch to simulation input. The paddle is drawn where the
+    /// finger points, raised by the touch offset so the finger never covers
+    /// the incoming ball (see `GameRenderer.paddleInput`). The swipe itself
+    /// is read from raw screen motion.
     private func input(for touch: UITouch, phase: InputEvent.Phase) {
         let p = touch.location(in: view)
         let w = max(view.bounds.width, 1), h = max(view.bounds.height, 1)
-        let up = 1 - p.y / h                       // 0 = bottom of screen
+        let up = Double(1 - p.y / h)                  // 0 = bottom of screen
         let offset = settings.controls.touchOffset
-        let u = Double((p.x / w - 0.06) / 0.88)
-        // The paddle sits `offset` screen-heights above the finger so the
-        // finger never covers the incoming ball.
-        let v = (Double(up) + offset - 0.17) / 0.36
+        let (u, v) = GameRenderer.paddleInput(screenX: Double(p.x / w), up: up + offset, reach: PaddleReach())
         host.withSim { sim in
             sim.handleInput(phase: phase, u: u, v: v,
-                            screenX: Double(p.x / h), screenY: Double(up))
+                            screenX: Double(p.x / h), screenY: up)
         }
     }
 
