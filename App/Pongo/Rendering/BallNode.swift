@@ -62,6 +62,15 @@ final class BallNode: SCNNode {
         sphere.geometry?.materials = [m]
     }
 
+    /// Short squash-and-recover on a strong strike (visual only).
+    func pop(power: Double) {
+        guard power > 0.35 else { return }
+        let s = Float(1 + 0.25 * min(1, power))
+        sphere.removeAction(forKey: "pop")
+        sphere.scale = SCNVector3(s, 1 / s.squareRoot(), s)
+        sphere.runAction(.scale(to: 1, duration: 0.09), forKey: "pop")
+    }
+
     /// - Parameters:
     ///   - power: 0...1 recent shot power (for the orb's glow on big shots).
     func update(ball: BallState, dt: Double, power: Double) {

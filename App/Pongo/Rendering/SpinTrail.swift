@@ -2,12 +2,17 @@ import SceneKit
 import SpinCore
 
 /// Camera-facing ribbon through the ball's recent positions. It shows the
-/// real, recent curvature of the flight (never a predicted path). Its width
-/// and brightness scale with spin, in Cnmbuck cyan.
+/// real, recent curvature of the flight (never a predicted path), so a
+/// curving sidespin or dipping topspin ball draws a curved trail. Width and
+/// brightness scale with spin; colour reads the spin type (cyan topspin,
+/// violet backspin, paler for sidespin); fast shots draw longer, brighter.
 final class SpinTrail: SCNNode {
 
     private var points: [SIMD3<Float>] = []
-    private let maxPoints = 26
+    private let maxPoints = 34
+    var enabled = true
+    /// Brief emphasis after a strong or perfect hit (decays per frame).
+    var flash: Float = 0
     private let material: SCNMaterial
     var boost: Float = 1
 
@@ -30,12 +35,25 @@ final class SpinTrail: SCNNode {
     }
 
     func update(ball: BallState, inPlay: Bool, cameraPosition: SIMD3<Float>) {
-        guard inPlay else { reset(); return }
+        guard inPlay, enabled else { reset(); return }
+        flash *= 0.94
         points.append(ball.position.simd)
-        if points.count > maxPoints { points.removeFirst(points.count - maxPoints) }
+        let speed = Float(ball.velocity.length)
+        // Standard shots keep a short trail; power shots a longer one.
+        let length = Int(14 + min(1, max(0, (speed - 6) / 8)) * Float(maxPoints - 14))
+        if points.count > length { points.removeFirst(points.count - length) }
         let spin = Float(ball.spin.length)
-        let strength = min(1, max(0, (spin - 25) / 200)) * boost
-        guard points.count >= 3, strength > 0.02 else { geometry = nil; return }
+        let strength = min(1, (0.15 + max(0, (spin - 25) / 220)) * boost + flash * 0.5)
+        guard points.count >= 3 else { geometry = nil; return }
+        // Spin type → colour.
+        let reading = SpinReading(ball: ball)
+        let total = max(1e-3, abs(reading.topspin) + abs(reading.sidespin))
+        let back = Float(max(0, -reading.topspin) / total)
+        let side = Float(abs(reading.sidespin) / total)
+        let cyan = SIMD3<Float>(0.0, 0.88, 1.0), violet = SIMD3<Float>(0.56, 0.40, 1.0), pale = SIMD3<Float>(0.7, 1.0, 1.0)
+        var rgb = cyan + (violet - cyan) * back
+        rgb = rgb + (pale - rgb) * (side * 0.6)
+        let bright = 0.8 + 0.4 * min(1, max(0, (speed - 8) / 6)) + flash * 0.6
 
         var verts: [SCNVector3] = []
         var colors: [SIMD4<Float>] = []
@@ -56,7 +74,8 @@ final class SpinTrail: SCNNode {
             let l = p - side * width, r = p + side * width
             verts.append(SCNVector3(l.x, l.y, l.z))
             verts.append(SCNVector3(r.x, r.y, r.z))
-            let c = SIMD4<Float>(0.0 * a, 0.88 * a, 1.0 * a, a)
+            let k = a * bright
+            let c = SIMD4<Float>(rgb.x * k, rgb.y * k, rgb.z * k, a)
             colors.append(c); colors.append(c)
         }
         let vSource = SCNGeometrySource(vertices: verts)

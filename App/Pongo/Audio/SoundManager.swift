@@ -7,7 +7,7 @@ final class SoundManager {
     static let shared = SoundManager()
 
     enum Effect: CaseIterable {
-        case paddle, table, net, point, victory, defeat, menu
+        case paddle, perfect, table, net, point, victory, defeat, menu
     }
 
     var enabled = true
@@ -79,6 +79,12 @@ final class SoundManager {
                 return env * (0.55 * tone(1500 + 900 * k, t) + 0.35 * tone(520 + 120 * k, t) + 0.25 * noise() * exp(-t * 300))
             }
         }
+        // Perfectly timed stroke: the paddle crack plus a short bright shimmer.
+        buffers[.perfect] = [makeBuffer(duration: 0.22) { t in
+            let crack = exp(-t * 90) * (0.5 * tone(2300, t) + 0.3 * tone(620, t))
+            let shimmer = 0.22 * exp(-t * 14) * (tone(1760, t) + 0.6 * tone(2637, t)) * min(1, t * 200)
+            return crack + shimmer
+        }]
         // Table: hollow "tok".
         buffers[.table] = [0.0, 0.5, 1.0].map { k in
             makeBuffer(duration: 0.09) { t in

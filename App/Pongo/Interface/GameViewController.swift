@@ -34,6 +34,7 @@ final class GameViewController: UIViewController {
     private var tutorialText = ""
     private var serveTutorialActive = false
     private var hitTutorialActive = false
+    private var lastTiming: StrokeTiming?
 
     // Touch tracking (single finger).
     private weak var activeTouch: UITouch?
@@ -231,8 +232,10 @@ final class GameViewController: UIViewController {
         _ = phase; _ = server
         if mode == .training, settings.trainingOverlays, let c = contact {
             let who = c.side == .near ? "YOU" : "FEEDER"
-            contactReadout.text = String(format: "%@  %.1f m/s\n%@  %.0f rpm", who, c.ballSpeed,
-                                         c.spin.label.uppercased(), c.spin.revolutionsPerSecond * 60)
+            let timing = c.side == .near ? (lastTiming?.rawValue.uppercased() ?? "") : ""
+            contactReadout.numberOfLines = 3
+            contactReadout.text = String(format: "%@  %.1f m/s\n%@  %.0f rpm\n%@", who, c.ballSpeed,
+                                         c.spin.label.uppercased(), c.spin.revolutionsPerSecond * 60, timing)
         }
     }
 
@@ -300,8 +303,11 @@ final class GameViewController: UIViewController {
                 let strength = min(1, p.impactSpeed / 12)
                 switch p.kind {
                 case .paddleHit:
-                    SoundManager.shared.play(.paddle, strength: strength)
+                    let timing = p.side == .near
+                        ? host.withSim { ($0.nearDriver as? PlayerPaddleController)?.strokeTiming } : nil
+                    SoundManager.shared.play(timing == .perfect ? .perfect : .paddle, strength: strength)
                     if p.side == .near {
+                        lastTiming = timing
                         let power = min(1, p.ballAfter.velocity.length / 14)
                         HapticManager.shared.paddleContact(power: power)
                         let strokes = host.withSim { $0.referee.strokes }

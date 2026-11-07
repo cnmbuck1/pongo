@@ -14,6 +14,8 @@ final class SimulationHost: NSObject, SCNSceneRendererDelegate {
     private let lock = NSLock()
     private var lastTime: TimeInterval?
     private var paused = false
+    /// Simulation time of the player's last perfectly timed hit.
+    private(set) var lastPerfectHitTime: Double = -1
 
     /// Delivered on the main thread.
     var onEvents: (([GameEvent]) -> Void)?
@@ -46,6 +48,10 @@ final class SimulationHost: NSObject, SCNSceneRendererDelegate {
             if case let .physics(p) = e, p.kind == .paddleHit {
                 let speed = p.ballAfter.velocity.length
                 if speed > 9 { renderer.powerShot(min(1, (speed - 9) / 6)) }
+                let perfect = p.side == .near
+                    && (sim.nearDriver as? PlayerPaddleController)?.strokeTiming == .perfect
+                renderer.paddleImpact(side: p.side, power: min(1, speed / 14), perfect: perfect)
+                if perfect { lastPerfectHitTime = p.time }
             }
         }
         renderer.update(sim: sim, frameDt: paused ? 0 : dt)

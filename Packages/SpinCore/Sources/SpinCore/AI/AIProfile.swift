@@ -52,9 +52,9 @@ public struct AIProfile: Codable, Equatable {
 
     public static let beginner = AIProfile(
         name: "Rookie", reactionDelay: 0.2, maxSpeed: 2.7, maxAcceleration: 15,
-        predictionError: 0.022, aimErrorDegrees: 2.2, mistakeProbability: 0.10,
-        spinPreference: 0.15, topspinBias: 0.2, sidespinPreference: 0.0,
-        aggressiveness: 0.15, placementWidth: 0.25, strategicPlacement: false, maxShotSpeed: 6.5)
+        predictionError: 0.02, aimErrorDegrees: 2.0, mistakeProbability: 0.07,
+        spinPreference: 0.12, topspinBias: 0.2, sidespinPreference: 0.0,
+        aggressiveness: 0.12, placementWidth: 0.2, strategicPlacement: false, maxShotSpeed: 6.0)
 
     public static let intermediate = AIProfile(
         name: "Contender", reactionDelay: 0.17, maxSpeed: 3.0, maxAcceleration: 17,

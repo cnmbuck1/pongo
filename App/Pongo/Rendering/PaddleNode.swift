@@ -7,6 +7,7 @@ final class PaddleNode: SCNNode {
 
     private let bladePivot = SCNNode()
     private var smoothedNormal = SIMD3<Float>(0, 0, -1)
+    private let flashNode = SCNNode()
 
     init(accent: UIColor, radius: Double) {
         super.init()
@@ -35,6 +36,20 @@ final class PaddleNode: SCNNode {
             bladePivot.addChildNode(face)
         }
 
+        // Contact flash (Build 2 impact feedback).
+        let fl = SCNPlane(width: r * 3.2, height: r * 3.2)
+        let fm = SCNMaterial()
+        fm.lightingModel = .constant
+        fm.diffuse.contents = Materials.radialSprite(accent)
+        fm.blendMode = .add
+        fm.writesToDepthBuffer = false
+        fl.materials = [fm]
+        flashNode.geometry = fl
+        flashNode.constraints = [SCNBillboardConstraint()]
+        flashNode.opacity = 0
+        flashNode.castsShadow = false
+        addChildNode(flashNode)
+
         // Glowing rim.
         let rim = SCNNode(geometry: SCNTorus(ringRadius: r, pipeRadius: 0.006))
         rim.geometry?.materials = [Materials.glow(accent, intensity: 1.1)]
@@ -54,6 +69,22 @@ final class PaddleNode: SCNNode {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// Brief flash and recoil on contact; `perfect` makes it brighter.
+    func impact(power: Double, perfect: Bool) {
+        flashNode.removeAllActions()
+        flashNode.opacity = CGFloat(perfect ? 1.0 : 0.35 + 0.45 * power)
+        flashNode.scale = SCNVector3(1, 1, 1)
+        flashNode.runAction(.group([.fadeOut(duration: perfect ? 0.22 : 0.14),
+                                    .scale(to: perfect ? 1.6 : 1.25, duration: 0.18)]))
+        bladePivot.removeAction(forKey: "recoil")
+        let kick = -smoothedNormal * Float(0.015 + 0.02 * power)   // pushed back along the face normal
+        let back = SCNAction.move(to: SCNVector3(kick.x, kick.y, kick.z), duration: 0.04)
+        back.timingMode = .easeOut
+        let home = SCNAction.move(to: SCNVector3(0, 0, 0), duration: 0.12)
+        home.timingMode = .easeInEaseOut
+        bladePivot.runAction(.sequence([back, home]), forKey: "recoil")
+    }
 
     /// Mirrors a simulated paddle state.
     func apply(_ paddle: PaddleState) {

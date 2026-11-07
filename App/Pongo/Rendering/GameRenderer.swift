@@ -59,7 +59,7 @@ final class GameRenderer {
     }
     var cameraConfig = CameraConfig()
     static let paddleVisualScale = 1.8
-    var motionEffects = true
+    var motionEffects = true { didSet { trail.enabled = motionEffects || trainingVisuals } }
 
     static let baseFOV: CGFloat = CameraConfig().fieldOfView
     static var cameraPosition: SIMD3<Float> { SIMD3<Float>(0, CameraConfig().height, CameraConfig().distance) }
@@ -148,6 +148,15 @@ final class GameRenderer {
     func setSkin(_ skin: BallSkin) { ballNode.apply(skin: skin) }
 
     /// Subtle emphasis for powerful shots (kept small for gameplay stability).
+    /// Contact feedback: paddle flash and recoil, trail emphasis.
+    func paddleImpact(side: Side?, power: Double, perfect: Bool) {
+        let node = side == .far ? farPaddle : nearPaddle
+        node.impact(power: power, perfect: perfect)
+        guard motionEffects else { return }
+        trail.flash = max(trail.flash, Float(perfect ? 1 : power * 0.6))
+        ballNode.pop(power: perfect ? max(power, 0.6) : power)
+    }
+
     func powerShot(_ strength: Double) {
         guard motionEffects else { return }
         shake = max(shake, Float(0.006 * strength))
@@ -238,10 +247,11 @@ final class GameRenderer {
             fovKick *= 0.88
         case .orbit:
             orbitAngle += Float(dt) * 0.12
-            let r: Float = 4.6
-            cameraNode.simdPosition = SIMD3<Float>(sin(orbitAngle) * r, 2.3, cos(orbitAngle) * r)
-            cameraNode.simdLook(at: SIMD3<Float>(0, 0.8, 0))
-            camera.fieldOfView = 70
+            // Lower, closer orbit for a cinematic menu backdrop.
+            let r: Float = 3.7
+            cameraNode.simdPosition = SIMD3<Float>(sin(orbitAngle) * r, 1.75, cos(orbitAngle) * r)
+            cameraNode.simdLook(at: SIMD3<Float>(0, 0.85, 0))
+            camera.fieldOfView = 66
         }
     }
 }
