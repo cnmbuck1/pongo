@@ -1,0 +1,370 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AFC94C2C02777728B5F7139E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24BD23DCCA6219CDC7602FDF /* AppDelegate.swift */; };
+		906B721CDFADA5B55EE95469 /* GameConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8049AA2DF2F50C1D5761102B /* GameConfig.swift */; };
+		B478858083DAB3D5ACB6F733 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A94E04A70AD140D2C3FA40D0 /* HapticManager.swift */; };
+		6660305ECB9D05C05479734C /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8DF897EE8A3B095907DDE8 /* SoundManager.swift */; };
+		6A1954590E59B0B812CEF598 /* GameViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B0D4C2FE5B565A4B7A2CE9D /* GameViewController.swift */; };
+		25EE41B43A56E053F185B51D /* MenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4725C2B06274F56D92121230 /* MenuViewController.swift */; };
+		BA80414D9C3208213B9A50B1 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89B0F7E5CF46C509B0FFDD4 /* SettingsViewController.swift */; };
+		39A83E80340CE32DD3BF8574 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408925124F784D1FF8E11A5B /* UIComponents.swift */; };
+		305FB4136F074B3D09EE0203 /* ArenaBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381289054CA58FED39DB4A60 /* ArenaBuilder.swift */; };
+		FB7AF422C7136D3986304E81 /* BallNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3479FF5AE27F1E4DAED7DDB1 /* BallNode.swift */; };
+		3F87F29A883669D295F05AB6 /* GameRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 838322C799F4BE328885265E /* GameRenderer.swift */; };
+		AD9223041657DB93DB762C60 /* Materials.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19289694CA14383484786BDC /* Materials.swift */; };
+		F4C9403EE89448FCCFCB7939 /* PaddleNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCFAC980C870AE997E432C5 /* PaddleNode.swift */; };
+		5BDB264AAE3593F1B619DA1B /* SimulationHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B554CA4DE71D56B7A19F9FB /* SimulationHost.swift */; };
+		AF774F1BF2D728FF2C868477 /* SpinTrail.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11A9FF4ABECEFCE8127200E /* SpinTrail.swift */; };
+		DF86920109FE3C3C79B38D74 /* TableNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1825B770E8C730A59DDE16D /* TableNode.swift */; };
+		DCA2DC1A3CEE6F01BFEB314D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 521F53C86FE7AE997448D546 /* Assets.xcassets */; };
+		CA84C465FAA59C554E8F1428 /* SpinCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1B8845FDF9C083C9F3B61DEC /* SpinCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		24BD23DCCA6219CDC7602FDF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		8049AA2DF2F50C1D5761102B /* GameConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfig.swift; sourceTree = "<group>"; };
+		A94E04A70AD140D2C3FA40D0 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
+		7A8DF897EE8A3B095907DDE8 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
+		6B0D4C2FE5B565A4B7A2CE9D /* GameViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewController.swift; sourceTree = "<group>"; };
+		4725C2B06274F56D92121230 /* MenuViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuViewController.swift; sourceTree = "<group>"; };
+		D89B0F7E5CF46C509B0FFDD4 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		408925124F784D1FF8E11A5B /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
+		381289054CA58FED39DB4A60 /* ArenaBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArenaBuilder.swift; sourceTree = "<group>"; };
+		3479FF5AE27F1E4DAED7DDB1 /* BallNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallNode.swift; sourceTree = "<group>"; };
+		838322C799F4BE328885265E /* GameRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRenderer.swift; sourceTree = "<group>"; };
+		19289694CA14383484786BDC /* Materials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Materials.swift; sourceTree = "<group>"; };
+		1BCFAC980C870AE997E432C5 /* PaddleNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaddleNode.swift; sourceTree = "<group>"; };
+		9B554CA4DE71D56B7A19F9FB /* SimulationHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationHost.swift; sourceTree = "<group>"; };
+		E11A9FF4ABECEFCE8127200E /* SpinTrail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinTrail.swift; sourceTree = "<group>"; };
+		A1825B770E8C730A59DDE16D /* TableNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableNode.swift; sourceTree = "<group>"; };
+		521F53C86FE7AE997448D546 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		03DB4BB0E1AA3A8A7E71FCC2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AAA5C5992E4C314AFBD0B100 /* Pongo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pongo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		424153ED3CD079DB4DB459AF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA84C465FAA59C554E8F1428 /* SpinCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		518DA81DB9B99529C0C0AEBE = {
+			isa = PBXGroup;
+			children = (
+				2C3F3EC9D8704B9507E44512 /* Pongo */,
+				547D009064F7C3F13BEF3460 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		547D009064F7C3F13BEF3460 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AAA5C5992E4C314AFBD0B100 /* Pongo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2C3F3EC9D8704B9507E44512 /* Pongo */ = {
+			isa = PBXGroup;
+			children = (
+				D1D0524B025E57AFFF263442 /* App */,
+				A1AB27214B1B68E51BFF4DF7 /* Interface */,
+				7F454BC6B78D33150764BCE2 /* Rendering */,
+				E45F76C2D80FAD483876517A /* Audio */,
+				887A6F90336FF23D95C3914B /* Resources */,
+			);
+			path = App/Pongo;
+			sourceTree = "<group>";
+		};
+		D1D0524B025E57AFFF263442 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				24BD23DCCA6219CDC7602FDF /* AppDelegate.swift */,
+				8049AA2DF2F50C1D5761102B /* GameConfig.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A1AB27214B1B68E51BFF4DF7 /* Interface */ = {
+			isa = PBXGroup;
+			children = (
+				6B0D4C2FE5B565A4B7A2CE9D /* GameViewController.swift */,
+				4725C2B06274F56D92121230 /* MenuViewController.swift */,
+				D89B0F7E5CF46C509B0FFDD4 /* SettingsViewController.swift */,
+				408925124F784D1FF8E11A5B /* UIComponents.swift */,
+			);
+			path = Interface;
+			sourceTree = "<group>";
+		};
+		7F454BC6B78D33150764BCE2 /* Rendering */ = {
+			isa = PBXGroup;
+			children = (
+				381289054CA58FED39DB4A60 /* ArenaBuilder.swift */,
+				3479FF5AE27F1E4DAED7DDB1 /* BallNode.swift */,
+				838322C799F4BE328885265E /* GameRenderer.swift */,
+				19289694CA14383484786BDC /* Materials.swift */,
+				1BCFAC980C870AE997E432C5 /* PaddleNode.swift */,
+				9B554CA4DE71D56B7A19F9FB /* SimulationHost.swift */,
+				E11A9FF4ABECEFCE8127200E /* SpinTrail.swift */,
+				A1825B770E8C730A59DDE16D /* TableNode.swift */,
+			);
+			path = Rendering;
+			sourceTree = "<group>";
+		};
+		E45F76C2D80FAD483876517A /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				A94E04A70AD140D2C3FA40D0 /* HapticManager.swift */,
+				7A8DF897EE8A3B095907DDE8 /* SoundManager.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		887A6F90336FF23D95C3914B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				521F53C86FE7AE997448D546 /* Assets.xcassets */,
+				03DB4BB0E1AA3A8A7E71FCC2 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E67DA5479CC69C82998250A3 /* Pongo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F2F62AAE534BA46EC59716F3 /* Build configuration list for PBXNativeTarget "Pongo" */;
+			buildPhases = (
+				7A70D71C385290AF96BF1031 /* Sources */,
+				424153ED3CD079DB4DB459AF /* Frameworks */,
+				285BB1C1430063331E9F5DD0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Pongo;
+			packageProductDependencies = (
+				1B8845FDF9C083C9F3B61DEC /* SpinCore */,
+			);
+			productName = Pongo;
+			productReference = AAA5C5992E4C314AFBD0B100 /* Pongo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		46F86FAA6BBF9AC94A7E4595 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				ORGANIZATIONNAME = "Cnmbuck Studios";
+				TargetAttributes = {
+					E67DA5479CC69C82998250A3 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 7EF2517A8FE63F4681EC5EEA /* Build configuration list for PBXProject "Pongo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 518DA81DB9B99529C0C0AEBE;
+			packageReferences = (
+				3B7672CC3CD0447DF4AE5A9E /* XCLocalSwiftPackageReference "Packages/SpinCore" */,
+			);
+			productRefGroup = 547D009064F7C3F13BEF3460 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E67DA5479CC69C82998250A3 /* Pongo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		285BB1C1430063331E9F5DD0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DCA2DC1A3CEE6F01BFEB314D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7A70D71C385290AF96BF1031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AFC94C2C02777728B5F7139E /* AppDelegate.swift in Sources */,
+				906B721CDFADA5B55EE95469 /* GameConfig.swift in Sources */,
+				B478858083DAB3D5ACB6F733 /* HapticManager.swift in Sources */,
+				6660305ECB9D05C05479734C /* SoundManager.swift in Sources */,
+				6A1954590E59B0B812CEF598 /* GameViewController.swift in Sources */,
+				25EE41B43A56E053F185B51D /* MenuViewController.swift in Sources */,
+				BA80414D9C3208213B9A50B1 /* SettingsViewController.swift in Sources */,
+				39A83E80340CE32DD3BF8574 /* UIComponents.swift in Sources */,
+				305FB4136F074B3D09EE0203 /* ArenaBuilder.swift in Sources */,
+				FB7AF422C7136D3986304E81 /* BallNode.swift in Sources */,
+				3F87F29A883669D295F05AB6 /* GameRenderer.swift in Sources */,
+				AD9223041657DB93DB762C60 /* Materials.swift in Sources */,
+				F4C9403EE89448FCCFCB7939 /* PaddleNode.swift in Sources */,
+				5BDB264AAE3593F1B619DA1B /* SimulationHost.swift in Sources */,
+				AF774F1BF2D728FF2C868477 /* SpinTrail.swift in Sources */,
+				DF86920109FE3C3C79B38D74 /* TableNode.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C02C0D246B9DB7EDD7178588 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		7A11D79DD6558B1B4289D4C6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A750A546A3DEFD1F440597CB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Pongo/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cnmbuck.pongo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		4E9B7A83CB057101A7562A95 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Pongo/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cnmbuck.pongo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7EF2517A8FE63F4681EC5EEA /* Build configuration list for PBXProject "Pongo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C02C0D246B9DB7EDD7178588 /* Debug */,
+				7A11D79DD6558B1B4289D4C6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F2F62AAE534BA46EC59716F3 /* Build configuration list for PBXNativeTarget "Pongo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A750A546A3DEFD1F440597CB /* Debug */,
+				4E9B7A83CB057101A7562A95 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		3B7672CC3CD0447DF4AE5A9E /* XCLocalSwiftPackageReference "Packages/SpinCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SpinCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1B8845FDF9C083C9F3B61DEC /* SpinCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SpinCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+}
