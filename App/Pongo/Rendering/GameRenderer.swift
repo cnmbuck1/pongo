@@ -22,6 +22,7 @@ final class GameRenderer {
     private let shadowBlob = SCNNode()
     private let spinArrow = SCNNode()
     private var bounceMarkers: [SCNNode] = []
+    private let targetNode = SCNNode()
     private var shownBounces: [Vec3] = []
 
     var cameraMode: CameraMode = .gameplay
@@ -146,6 +147,29 @@ final class GameRenderer {
     }
 
     func setSkin(_ skin: BallSkin) { ballNode.apply(skin: skin) }
+
+    /// Training: a target zone on the table (nil hides it).
+    func showTarget(_ point: Vec3?, radius: Double) {
+        if targetNode.geometry == nil {
+            let disc = SCNCylinder(radius: 1, height: 0.001)
+            let m = SCNMaterial()
+            m.lightingModel = .constant
+            m.diffuse.contents = Palette.violet.withAlphaComponent(0.22)
+            m.blendMode = .add
+            m.writesToDepthBuffer = false
+            disc.materials = [m]
+            targetNode.geometry = disc
+            let ring = SCNNode(geometry: SCNTorus(ringRadius: 1, pipeRadius: 0.02))
+            ring.geometry?.materials = [Materials.glow(Palette.violet, intensity: 0.9)]
+            targetNode.addChildNode(ring)
+            targetNode.castsShadow = false
+            scene.rootNode.addChildNode(targetNode)
+        }
+        guard let p = point else { targetNode.isHidden = true; return }
+        targetNode.isHidden = false
+        targetNode.simdPosition = SIMD3<Float>(Float(p.x), Float(p.y) + 0.002, Float(p.z))
+        targetNode.scale = SCNVector3(Float(radius), 1, Float(radius))
+    }
 
     /// Subtle emphasis for powerful shots (kept small for gameplay stability).
     /// Contact feedback: paddle flash and recoil, trail emphasis.

@@ -37,7 +37,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.makeKeyAndVisible()
         // Screenshot automation (CI): jump straight into a match.
         let args = ProcessInfo.processInfo.arguments
-        if args.contains("-PongoAutostart") || args.contains("-PongoDemo") {
+        if args.contains("-PongoTraining") {
+            nav.pushViewController(GameViewController(mode: .training, settings: AppSettings.load(),
+                                                      module: .placement), animated: false)
+        } else if args.contains("-PongoAutostart") || args.contains("-PongoDemo") {
             let game = GameViewController(mode: .match, settings: AppSettings.load(),
                                           demo: args.contains("-PongoDemo"))
             nav.pushViewController(game, animated: false)

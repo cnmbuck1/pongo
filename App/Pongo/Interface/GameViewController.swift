@@ -36,12 +36,20 @@ final class GameViewController: UIViewController {
     private var hitTutorialActive = false
     private var lastTiming: StrokeTiming?
 
+    // Training module scoring.
+    private let module: TrainingModule?
+    private var attempts = 0
+    private var successes = 0
+    private var pendingAttempt: SpinReading?
+    private var promptsLeft = 3
+
     // Touch tracking (single finger).
     private weak var activeTouch: UITouch?
 
     /// `demo` (screenshot automation only) lets an AI play the near side too.
-    init(mode: GameMode, settings: AppSettings, demo: Bool = false) {
+    init(mode: GameMode, settings: AppSettings, module: TrainingModule? = nil, demo: Bool = false) {
         self.mode = mode
+        self.module = mode == .training ? (module ?? .basicReturns) : nil
         self.settings = settings
         var setup = GameSetup()
         setup.mode = mode
@@ -82,6 +90,7 @@ final class GameViewController: UIViewController {
         pin(scnView)
         buildHUD()
         host.onEvents = { [weak self] events in self?.handle(events) }
+        refreshTrainingTarget()
         NotificationCenter.default.addObserver(self, selector: #selector(appWillResign), name: .pongoShouldPause, object: nil)
         refreshHUD()
     }
@@ -183,8 +192,8 @@ final class GameViewController: UIViewController {
         if mode == .training {
             playerScore.isHidden = true; opponentScore.isHidden = true
             playerServe.isHidden = true; opponentServe.isHidden = true
-            gamesLabel.text = "RETURNS 0"
-            gameLabel.text = "TRAINING"
+            gamesLabel.text = "0 / 0"
+            gameLabel.text = (module?.title ?? "Training").uppercased()
             opponentName.text = "FEEDER"
         }
 
@@ -227,10 +236,11 @@ final class GameViewController: UIViewController {
             playerServe.alpha = server == .near ? 1 : 0.12
             opponentServe.alpha = server == .far ? 1 : 0.12
         } else {
-            gamesLabel.text = "RETURNS \(returns)"
+            _ = returns
+            gamesLabel.text = "\(successes) / \(attempts)"
         }
         _ = phase; _ = server
-        if mode == .training, settings.trainingOverlays, let c = contact {
+        if mode == .training, module == nil, settings.trainingOverlays, let c = contact {
             let who = c.side == .near ? "YOU" : "FEEDER"
             let timing = c.side == .near ? (lastTiming?.rawValue.uppercased() ?? "") : ""
             contactReadout.numberOfLines = 3
@@ -252,7 +262,7 @@ final class GameViewController: UIViewController {
         if serveTutorialActive && phase == .serving && server == .near {
             text = held ? "TAP TO TOSS" : "SWIPE TO SERVE"
         } else if hitTutorialActive && incoming {
-            text = "SWIPE UP TO HIT"
+            text = module?.prompt ?? "SWIPE UP TO HIT"
         }
         if text != tutorialText { setTutorial(text) }
     }
@@ -318,10 +328,19 @@ final class GameViewController: UIViewController {
                             saved.serveTutorialDone = true
                             saved.save()
                         } else if strokes > 1 {
-                            hitTutorialActive = false
+                            if let m = module {
+                                promptsLeft -= 1
+                                if promptsLeft <= 0 { hitTutorialActive = false }
+                                pendingAttempt = SpinReading(ball: p.ballAfter)
+                                _ = m
+                            } else {
+                                hitTutorialActive = false
+                            }
                         }
                     }
-                case .tableBounce: SoundManager.shared.play(.table, strength: strength)
+                case .tableBounce:
+                    SoundManager.shared.play(.table, strength: strength)
+                    if p.side == .far, let spin = pendingAttempt { finishAttempt(spin: spin, landing: p.point) }
                 case .netTouch: SoundManager.shared.play(.net, strength: strength)
                 case .floorHit: SoundManager.shared.play(.table, strength: strength * 0.4)
                 }
@@ -329,7 +348,13 @@ final class GameViewController: UIViewController {
                 SoundManager.shared.play(.point, strength: 0.7)
                 HapticManager.shared.point(won: winner == .near)
                 if mode == .training {
-                    flash(winner == .near ? "NICE" : describe(reason), color: winner == .near ? Palette.cyan : Palette.white)
+                    if let spin = pendingAttempt {
+                        finishAttempt(spin: spin, landing: nil)
+                    } else if winner == .far {
+                        attempts += 1
+                        flash(describe(reason), color: Palette.white)
+                        refreshTrainingTarget()
+                    }
                 } else {
                     flash(winner == .near ? "POINT" : describe(reason), color: winner == .near ? Palette.cyan : Palette.violet)
                 }
@@ -350,6 +375,27 @@ final class GameViewController: UIViewController {
             }
         }
         refreshHUD()
+    }
+
+    private func finishAttempt(spin: SpinReading, landing: Vec3?) {
+        guard let m = module else { return }
+        pendingAttempt = nil
+        let ok = m.success(spin: spin, landing: landing, attempt: attempts)
+        attempts += 1
+        if ok { successes += 1 }
+        flash(ok ? "NICE" : "TRY AGAIN", color: ok ? Palette.cyan : Palette.white)
+        if settings.trainingOverlays {
+            let timing = lastTiming?.rawValue.uppercased() ?? ""
+            contactReadout.numberOfLines = 4
+            contactReadout.text = String(format: "%@  %@\n%.0f rpm\n%@", spin.label.uppercased(), timing,
+                                         spin.revolutionsPerSecond * 60, TrainingModule.describe(landing: landing))
+        }
+        refreshTrainingTarget()
+        refreshHUD()
+    }
+
+    private func refreshTrainingTarget() {
+        host.withSim { _ in host.renderer.showTarget(module?.target(attempt: attempts), radius: TrainingModule.targetRadius) }
     }
 
     private func describe(_ r: PointReason) -> String {

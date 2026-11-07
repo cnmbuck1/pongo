@@ -146,10 +146,28 @@ final class MenuViewController: UIViewController {
     }
 
     @objc private func playTapped() { start(.match) }
-    @objc private func trainingTapped() { start(.training) }
+    @objc private func trainingTapped() {
+        let sheet = UIAlertController(title: "Training", message: "Choose a drill. The feeder serves to you; no score is kept.",
+                                      preferredStyle: .actionSheet)
+        for m in TrainingModule.allCases {
+            sheet.addAction(UIAlertAction(title: m.title, style: .default) { [weak self] _ in
+                self?.start(.training, module: m)
+            })
+        }
+        sheet.addAction(UIAlertAction(title: "Replay how-to-play", style: .default) { [weak self] _ in
+            guard let self else { return }
+            self.settings.serveTutorialDone = false
+            self.settings.save()
+            self.start(.match)
+        })
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        sheet.popoverPresentationController?.sourceView = view
+        present(sheet, animated: true)
+    }
 
-    private func start(_ mode: GameMode) {
-        navigationController?.pushViewController(GameViewController(mode: mode, settings: settings), animated: true)
+    private func start(_ mode: GameMode, module: TrainingModule? = nil) {
+        navigationController?.pushViewController(GameViewController(mode: mode, settings: settings, module: module),
+                                                 animated: true)
     }
 
     @objc private func settingsTapped() {

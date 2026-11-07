@@ -14,6 +14,7 @@
 		6A1954590E59B0B812CEF598 /* GameViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B0D4C2FE5B565A4B7A2CE9D /* GameViewController.swift */; };
 		25EE41B43A56E053F185B51D /* MenuViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4725C2B06274F56D92121230 /* MenuViewController.swift */; };
 		BA80414D9C3208213B9A50B1 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89B0F7E5CF46C509B0FFDD4 /* SettingsViewController.swift */; };
+		066744BAF2F32DCB1F30A087 /* TrainingModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 027CF5C64F288F8F3B52E188 /* TrainingModule.swift */; };
 		39A83E80340CE32DD3BF8574 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408925124F784D1FF8E11A5B /* UIComponents.swift */; };
 		305FB4136F074B3D09EE0203 /* ArenaBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381289054CA58FED39DB4A60 /* ArenaBuilder.swift */; };
 		FB7AF422C7136D3986304E81 /* BallNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3479FF5AE27F1E4DAED7DDB1 /* BallNode.swift */; };
@@ -35,6 +36,7 @@
 		6B0D4C2FE5B565A4B7A2CE9D /* GameViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewController.swift; sourceTree = "<group>"; };
 		4725C2B06274F56D92121230 /* MenuViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuViewController.swift; sourceTree = "<group>"; };
 		D89B0F7E5CF46C509B0FFDD4 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		027CF5C64F288F8F3B52E188 /* TrainingModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingModule.swift; sourceTree = "<group>"; };
 		408925124F784D1FF8E11A5B /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
 		381289054CA58FED39DB4A60 /* ArenaBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArenaBuilder.swift; sourceTree = "<group>"; };
 		3479FF5AE27F1E4DAED7DDB1 /* BallNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallNode.swift; sourceTree = "<group>"; };
@@ -104,6 +106,7 @@
 				6B0D4C2FE5B565A4B7A2CE9D /* GameViewController.swift */,
 				4725C2B06274F56D92121230 /* MenuViewController.swift */,
 				D89B0F7E5CF46C509B0FFDD4 /* SettingsViewController.swift */,
+				027CF5C64F288F8F3B52E188 /* TrainingModule.swift */,
 				408925124F784D1FF8E11A5B /* UIComponents.swift */,
 			);
 			path = Interface;
@@ -225,6 +228,7 @@
 				6A1954590E59B0B812CEF598 /* GameViewController.swift in Sources */,
 				25EE41B43A56E053F185B51D /* MenuViewController.swift in Sources */,
 				BA80414D9C3208213B9A50B1 /* SettingsViewController.swift in Sources */,
+				066744BAF2F32DCB1F30A087 /* TrainingModule.swift in Sources */,
 				39A83E80340CE32DD3BF8574 /* UIComponents.swift in Sources */,
 				305FB4136F074B3D09EE0203 /* ArenaBuilder.swift in Sources */,
 				FB7AF422C7136D3986304E81 /* BallNode.swift in Sources */,

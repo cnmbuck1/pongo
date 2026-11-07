@@ -2,8 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main]
   pull_request:
+
+# One run per branch at a time; a newer push cancels the older run.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   spincore-tests:
@@ -69,6 +74,10 @@ jobs:
           xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo
           sleep 5
           xcrun simctl io "$UDID" screenshot screenshots/5-menu.png
+          xcrun simctl terminate "$UDID" com.cnmbuckstudios.pongo
+          xcrun simctl launch "$UDID" com.cnmbuckstudios.pongo -PongoTraining
+          sleep 7
+          xcrun simctl io "$UDID" screenshot screenshots/6-training.png
           for f in screenshots/*.png; do
             sips -Z 640 -s format jpeg -s formatOptions 60 "$f" --out "${f%.png}.jpg" >/dev/null
             echo "=== BEGIN ${f%.png}.jpg"; base64 -i "${f%.png}.jpg" | tr -d '\n'; echo; echo "=== END"
